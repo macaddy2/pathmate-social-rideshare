@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"C:\\\\Users\\\\uiade\\\\Downloads\\\\pathmate---social-rideshare\" /s /b)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout:*)",
+      "Bash(git init:*)",
+      "Bash(git config:*)",
+      "Bash(gh auth:*)",
+      "Bash(where:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: Implement PathMate social rideshare core features\n\n- Add direction-based matching algorithm for same-direction rides\n- Integrate Supabase for auth, database, and real-time features\n- Add Google Maps integration with route display and autocomplete\n- Create authentication flow with email/password and Google OAuth\n- Add real-time tracking with driver location broadcasts\n- Include PostGIS database schema with spatial queries\n- Support multi-currency pricing \\(NGN, USD, EUR, GBP\\)\n\nCore components:\n- AuthScreen: Login/signup with Google OAuth\n- SearchRide: Find rides with map-based pickup selection\n- PostRide: Create rides with route visualization\n- LiveTracker: Real-time driver tracking during rides\n- RouteMap: Display routes with markers\n- PlacesAutocomplete: Address input with suggestions\n\nServices:\n- matchingService: Direction-based ride matching\n- geoService: Distance, polyline, detour calculations\n- Supabase client with auth context\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+    ]
+  }
+}
