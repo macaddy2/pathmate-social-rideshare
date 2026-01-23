@@ -1,0 +1,7 @@
+{
+  "name": "PathMate - Social Rideshare",
+  "description": "A decentralized peer-to-peer carpooling platform that matches riders with drivers already heading in their direction.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
