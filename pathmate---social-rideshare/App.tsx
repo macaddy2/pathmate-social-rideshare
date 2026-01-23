@@ -13,10 +13,6 @@ import PostRide from './components/PostRide';
 import AIPlanner from './components/AIPlanner';
 import ChatWindow from './components/ChatWindow';
 import AuthScreen from './components/AuthScreen';
-import RideHistory from './components/RideHistory';
-import ProfileSettings from './components/ProfileSettings';
-import RecurringRides from './components/RecurringRides';
-import WalletScreen from './components/WalletScreen';
 
 // ============================================
 // MAIN APP CONTENT (Authenticated)
@@ -27,7 +23,7 @@ const AppContent: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState('home');
   const [role, setRole] = useState<UserRole>(UserRole.GUEST);
-  const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | undefined>(undefined);
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | undefined>(undefined);
   const [activeChat, setActiveChat] = useState<{ targetName: string, targetId: string } | null>(null);
 
   // Ratings state (will be moved to Supabase later)
@@ -104,26 +100,18 @@ const AppContent: React.FC = () => {
           <SearchRide
             userLocation={userLocation}
             onRate={addRating}
-            onOpenChat={(name, id) => setActiveChat({ targetName: name, targetId: id })}
+            onOpenChat={(name, id) => setActiveChat({targetName: name, targetId: id})}
           />
         );
       case 'post':
         return (
           <PostRide
             onRate={addRating}
-            onOpenChat={(name, id) => setActiveChat({ targetName: name, targetId: id })}
+            onOpenChat={(name, id) => setActiveChat({targetName: name, targetId: id})}
           />
         );
       case 'planner':
         return <AIPlanner />;
-      case 'history':
-        return <RideHistory />;
-      case 'profile':
-        return <ProfileSettings />;
-      case 'recurring':
-        return <RecurringRides />;
-      case 'wallet':
-        return <WalletScreen />;
       default:
         return (
           <Home

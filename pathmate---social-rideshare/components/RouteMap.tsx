@@ -1,0 +1,464 @@
+/**
+ * RouteMap Component
+ * Displays a route on Google Maps with origin, destination, and optional markers
+ */
+
+import React, { useCallback, useState, useEffect } from 'react';
+import {
+  GoogleMap,
+  useJsApiLoader,
+  Polyline,
+  Marker,
+  InfoWindow,
+} from '@react-google-maps/api';
+import type { GeoPoint, GeoRoute, LiveLocation } from '../types';
+import { decodePolyline } from '../services/geoService';
+
+// ============================================
+// TYPES
+// ============================================
+
+interface RouteMapProps {
+  route?: GeoRoute;
+  pickupPoint?: GeoPoint;
+  dropoffPoint?: GeoPoint;
+  driverLocation?: LiveLocation;
+  userLocation?: GeoPoint;
+  height?: string;
+  showTraffic?: boolean;
+  interactive?: boolean;
+  onMapClick?: (point: GeoPoint) => void;
+  onPickupSelect?: (point: GeoPoint) => void;
+  onDropoffSelect?: (point: GeoPoint) => void;
+  className?: string;
+}
+
+type SelectionMode = 'none' | 'pickup' | 'dropoff';
+
+// ============================================
+// CONSTANTS
+// ============================================
+
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+
+const DEFAULT_CENTER: GeoPoint = { lat: 9.0820, lng: 8.6753 }; // Nigeria center
+
+const mapContainerStyle = {
+  width: '100%',
+  height: '100%',
+};
+
+const defaultMapOptions: google.maps.MapOptions = {
+  disableDefaultUI: false,
+  zoomControl: true,
+  streetViewControl: false,
+  mapTypeControl: false,
+  fullscreenControl: false,
+  styles: [
+    {
+      featureType: 'poi',
+      elementType: 'labels',
+      stylers: [{ visibility: 'off' }],
+    },
+  ],
+};
+
+// ============================================
+// MARKER ICONS
+// ============================================
+
+const MARKER_ICONS = {
+  origin: {
+    path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+    fillColor: '#10B981', // Green
+    fillOpacity: 1,
+    strokeColor: '#ffffff',
+    strokeWeight: 2,
+    scale: 1.5,
+    anchor: { x: 12, y: 24 } as google.maps.Point,
+  },
+  destination: {
+    path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+    fillColor: '#EF4444', // Red
+    fillOpacity: 1,
+    strokeColor: '#ffffff',
+    strokeWeight: 2,
+    scale: 1.5,
+    anchor: { x: 12, y: 24 } as google.maps.Point,
+  },
+  pickup: {
+    path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+    fillColor: '#3B82F6', // Blue
+    fillOpacity: 1,
+    strokeColor: '#ffffff',
+    strokeWeight: 2,
+    scale: 1.5,
+    anchor: { x: 12, y: 24 } as google.maps.Point,
+  },
+  dropoff: {
+    path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+    fillColor: '#8B5CF6', // Purple
+    fillOpacity: 1,
+    strokeColor: '#ffffff',
+    strokeWeight: 2,
+    scale: 1.5,
+    anchor: { x: 12, y: 24 } as google.maps.Point,
+  },
+  driver: {
+    path: 'M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z',
+    fillColor: '#F59E0B', // Amber
+    fillOpacity: 1,
+    strokeColor: '#ffffff',
+    strokeWeight: 1,
+    scale: 1.5,
+    anchor: { x: 12, y: 12 } as google.maps.Point,
+  },
+  user: {
+    path: google.maps?.SymbolPath?.CIRCLE || 0,
+    fillColor: '#6366F1', // Indigo
+    fillOpacity: 1,
+    strokeColor: '#ffffff',
+    strokeWeight: 2,
+    scale: 8,
+  },
+};
+
+// ============================================
+// COMPONENT
+// ============================================
+
+const RouteMap: React.FC<RouteMapProps> = ({
+  route,
+  pickupPoint,
+  dropoffPoint,
+  driverLocation,
+  userLocation,
+  height = '300px',
+  showTraffic = false,
+  interactive = false,
+  onMapClick,
+  onPickupSelect,
+  onDropoffSelect,
+  className = '',
+}) => {
+  const [map, setMap] = useState<google.maps.Map | null>(null);
+  const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
+  const [selectionMode, setSelectionMode] = useState<SelectionMode>('none');
+
+  // Load Google Maps API
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: ['places'],
+  });
+
+  // Decode polyline to get route path
+  const routePath = route ? decodePolyline(route.polyline) : [];
+
+  // Calculate map bounds
+  const fitMapToBounds = useCallback(() => {
+    if (!map) return;
+
+    const bounds = new google.maps.LatLngBounds();
+
+    if (route) {
+      bounds.extend(new google.maps.LatLng(route.origin.lat, route.origin.lng));
+      bounds.extend(new google.maps.LatLng(route.destination.lat, route.destination.lng));
+    }
+
+    if (pickupPoint) {
+      bounds.extend(new google.maps.LatLng(pickupPoint.lat, pickupPoint.lng));
+    }
+
+    if (dropoffPoint) {
+      bounds.extend(new google.maps.LatLng(dropoffPoint.lat, dropoffPoint.lng));
+    }
+
+    if (userLocation) {
+      bounds.extend(new google.maps.LatLng(userLocation.lat, userLocation.lng));
+    }
+
+    if (driverLocation) {
+      bounds.extend(new google.maps.LatLng(driverLocation.point.lat, driverLocation.point.lng));
+    }
+
+    // Only fit bounds if we have points
+    if (!bounds.isEmpty()) {
+      map.fitBounds(bounds, { padding: 50 });
+    }
+  }, [map, route, pickupPoint, dropoffPoint, userLocation, driverLocation]);
+
+  // Fit bounds when data changes
+  useEffect(() => {
+    fitMapToBounds();
+  }, [fitMapToBounds]);
+
+  // Handle map load
+  const onLoad = useCallback((map: google.maps.Map) => {
+    setMap(map);
+  }, []);
+
+  // Handle map unmount
+  const onUnmount = useCallback(() => {
+    setMap(null);
+  }, []);
+
+  // Handle map click
+  const handleMapClick = useCallback(
+    (e: google.maps.MapMouseEvent) => {
+      if (!e.latLng || !interactive) return;
+
+      const point: GeoPoint = {
+        lat: e.latLng.lat(),
+        lng: e.latLng.lng(),
+      };
+
+      if (selectionMode === 'pickup' && onPickupSelect) {
+        onPickupSelect(point);
+        setSelectionMode('none');
+      } else if (selectionMode === 'dropoff' && onDropoffSelect) {
+        onDropoffSelect(point);
+        setSelectionMode('none');
+      } else if (onMapClick) {
+        onMapClick(point);
+      }
+    },
+    [interactive, selectionMode, onMapClick, onPickupSelect, onDropoffSelect]
+  );
+
+  // Get center point
+  const getCenter = (): GeoPoint => {
+    if (route) {
+      return {
+        lat: (route.origin.lat + route.destination.lat) / 2,
+        lng: (route.origin.lng + route.destination.lng) / 2,
+      };
+    }
+    if (userLocation) return userLocation;
+    return DEFAULT_CENTER;
+  };
+
+  // Loading state
+  if (!isLoaded) {
+    return (
+      <div
+        className={`flex items-center justify-center bg-gray-100 rounded-xl ${className}`}
+        style={{ height }}
+      >
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-gray-500">Loading map...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (loadError) {
+    return (
+      <div
+        className={`flex items-center justify-center bg-red-50 rounded-xl ${className}`}
+        style={{ height }}
+      >
+        <div className="flex flex-col items-center gap-2 text-center px-4">
+          <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span className="text-sm text-red-600">Failed to load map</span>
+          <span className="text-xs text-red-400">Check your API key</span>
+        </div>
+      </div>
+    );
+  }
+
+  // No API key state
+  if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === 'YOUR_GOOGLE_MAPS_API_KEY') {
+    return (
+      <div
+        className={`flex items-center justify-center bg-amber-50 rounded-xl border-2 border-dashed border-amber-200 ${className}`}
+        style={{ height }}
+      >
+        <div className="flex flex-col items-center gap-2 text-center px-4">
+          <svg className="w-8 h-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+          </svg>
+          <span className="text-sm font-medium text-amber-700">Map Preview</span>
+          <span className="text-xs text-amber-600">Add Google Maps API key to enable</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`relative rounded-xl overflow-hidden ${className}`} style={{ height }}>
+      <GoogleMap
+        mapContainerStyle={mapContainerStyle}
+        center={getCenter()}
+        zoom={12}
+        onLoad={onLoad}
+        onUnmount={onUnmount}
+        onClick={handleMapClick}
+        options={{
+          ...defaultMapOptions,
+          draggable: interactive,
+          scrollwheel: interactive,
+        }}
+      >
+        {/* Route polyline */}
+        {routePath.length > 0 && (
+          <Polyline
+            path={routePath}
+            options={{
+              strokeColor: '#4F46E5',
+              strokeWeight: 4,
+              strokeOpacity: 0.8,
+            }}
+          />
+        )}
+
+        {/* Origin marker */}
+        {route && (
+          <Marker
+            position={route.origin}
+            icon={MARKER_ICONS.origin}
+            onClick={() => setSelectedMarker('origin')}
+          >
+            {selectedMarker === 'origin' && (
+              <InfoWindow onCloseClick={() => setSelectedMarker(null)}>
+                <div className="text-sm">
+                  <strong>Start</strong>
+                  <p className="text-gray-600">{route.originAddress}</p>
+                </div>
+              </InfoWindow>
+            )}
+          </Marker>
+        )}
+
+        {/* Destination marker */}
+        {route && (
+          <Marker
+            position={route.destination}
+            icon={MARKER_ICONS.destination}
+            onClick={() => setSelectedMarker('destination')}
+          >
+            {selectedMarker === 'destination' && (
+              <InfoWindow onCloseClick={() => setSelectedMarker(null)}>
+                <div className="text-sm">
+                  <strong>End</strong>
+                  <p className="text-gray-600">{route.destinationAddress}</p>
+                </div>
+              </InfoWindow>
+            )}
+          </Marker>
+        )}
+
+        {/* Pickup point marker */}
+        {pickupPoint && (
+          <Marker
+            position={pickupPoint}
+            icon={MARKER_ICONS.pickup}
+            onClick={() => setSelectedMarker('pickup')}
+          >
+            {selectedMarker === 'pickup' && (
+              <InfoWindow onCloseClick={() => setSelectedMarker(null)}>
+                <div className="text-sm">
+                  <strong>Your Pickup</strong>
+                </div>
+              </InfoWindow>
+            )}
+          </Marker>
+        )}
+
+        {/* Dropoff point marker */}
+        {dropoffPoint && (
+          <Marker
+            position={dropoffPoint}
+            icon={MARKER_ICONS.dropoff}
+            onClick={() => setSelectedMarker('dropoff')}
+          >
+            {selectedMarker === 'dropoff' && (
+              <InfoWindow onCloseClick={() => setSelectedMarker(null)}>
+                <div className="text-sm">
+                  <strong>Your Dropoff</strong>
+                </div>
+              </InfoWindow>
+            )}
+          </Marker>
+        )}
+
+        {/* Driver location marker (for live tracking) */}
+        {driverLocation && (
+          <Marker
+            position={driverLocation.point}
+            icon={MARKER_ICONS.driver}
+            onClick={() => setSelectedMarker('driver')}
+          >
+            {selectedMarker === 'driver' && (
+              <InfoWindow onCloseClick={() => setSelectedMarker(null)}>
+                <div className="text-sm">
+                  <strong>Driver</strong>
+                  <p className="text-gray-600">On the way...</p>
+                </div>
+              </InfoWindow>
+            )}
+          </Marker>
+        )}
+
+        {/* User location marker */}
+        {userLocation && (
+          <Marker
+            position={userLocation}
+            icon={MARKER_ICONS.user}
+            onClick={() => setSelectedMarker('user')}
+          >
+            {selectedMarker === 'user' && (
+              <InfoWindow onCloseClick={() => setSelectedMarker(null)}>
+                <div className="text-sm">
+                  <strong>You are here</strong>
+                </div>
+              </InfoWindow>
+            )}
+          </Marker>
+        )}
+      </GoogleMap>
+
+      {/* Selection mode indicator */}
+      {interactive && selectionMode !== 'none' && (
+        <div className="absolute top-2 left-2 right-2 bg-indigo-600 text-white text-sm px-3 py-2 rounded-lg shadow-lg">
+          {selectionMode === 'pickup'
+            ? 'Tap on the map to set pickup point'
+            : 'Tap on the map to set dropoff point'}
+          <button
+            onClick={() => setSelectionMode('none')}
+            className="ml-2 text-indigo-200 hover:text-white"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {/* Selection controls */}
+      {interactive && selectionMode === 'none' && (onPickupSelect || onDropoffSelect) && (
+        <div className="absolute bottom-2 left-2 right-2 flex gap-2">
+          {onPickupSelect && (
+            <button
+              onClick={() => setSelectionMode('pickup')}
+              className="flex-1 bg-blue-600 text-white text-sm px-3 py-2 rounded-lg shadow-lg hover:bg-blue-700 transition-colors"
+            >
+              Set Pickup
+            </button>
+          )}
+          {onDropoffSelect && (
+            <button
+              onClick={() => setSelectionMode('dropoff')}
+              className="flex-1 bg-purple-600 text-white text-sm px-3 py-2 rounded-lg shadow-lg hover:bg-purple-700 transition-colors"
+            >
+              Set Dropoff
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default RouteMap;
