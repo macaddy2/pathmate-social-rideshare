@@ -9,7 +9,10 @@ A decentralized peer-to-peer carpooling platform that matches riders with driver
 | Framework | React | 19.2.3 |
 | Language | TypeScript | 5.8.2 |
 | Build | Vite | 6.2.0 |
-| Styling | Tailwind CSS (CDN) | Latest |
+| Styling | Tailwind CSS v4 + Shadcn/ui | 4.x |
+| Routing | React Router | 7.x |
+| State | Zustand | 5.x |
+| Icons | lucide-react | Latest |
 | Backend | Supabase (PostgreSQL + PostGIS + Auth + Realtime) | 2.90.1 |
 | Maps | Google Maps API (`@react-google-maps/api`) | 2.20.8 |
 | AI | Google Gemini (3 Pro, 3 Flash, 2.5 Flash) | 1.37.0 |
@@ -20,9 +23,10 @@ A decentralized peer-to-peer carpooling platform that matches riders with driver
 
 ```
 pathmate-social-rideshare/
-├── App.tsx                    # Root component — tab-based routing via activeTab state
-├── index.tsx                  # React DOM entry point
-├── index.html                 # HTML shell (Tailwind CDN, Inter font, importmap)
+├── App.tsx                    # Root component — React Router routes + Zustand stores
+├── index.tsx                  # React DOM entry point (BrowserRouter wrapper)
+├── index.html                 # HTML shell (minimal — Vite handles all bundling)
+├── index.css                  # Tailwind v4 entry + custom animations + Shadcn/ui CSS vars
 ├── types.ts                   # All TypeScript interfaces and enums (~459 lines)
 ├── components/                # UI components (16 files)
 │   ├── AIPlanner.tsx           # Gemini-powered trip planning assistant
@@ -51,8 +55,21 @@ pathmate-social-rideshare/
 │   └── AuthContext.tsx         # Auth state, sign-in/up/out, profile CRUD, ProtectedRoute
 ├── hooks/                     # Custom React hooks
 │   └── useRealTimeBooking.ts   # Supabase realtime: booking status + driver location
+├── stores/                    # Zustand global state stores
+│   ├── useChatStore.ts         # Active chat state (targetName, targetId)
+│   ├── useLocationStore.ts     # Geolocation state + init action
+│   ├── useNotificationStore.ts # Notification state wrapping notificationService
+│   └── useRideStore.ts         # Role + ratings state (mock data)
 ├── lib/                       # Client libraries
-│   └── supabase.ts             # Supabase client config + Database type definitions
+│   ├── supabase.ts             # Supabase client config + Database type definitions
+│   └── utils.ts                # Shadcn cn() utility (clsx + tailwind-merge)
+├── components/ui/             # Shadcn/ui base components
+│   ├── avatar.tsx              # Avatar with image + fallback
+│   ├── badge.tsx               # Badge with variants (default, success, warning, etc.)
+│   ├── button.tsx              # Button with variants (default, outline, ghost, etc.)
+│   ├── card.tsx                # Card, CardHeader, CardContent, CardFooter
+│   ├── input.tsx               # Styled input with focus ring
+│   └── separator.tsx           # Horizontal/vertical separator
 ├── supabase/                  # Database
 │   └── schema.sql              # Full PostgreSQL schema (7 tables, PostGIS, RLS)
 ├── tests/                     # Unit tests (Vitest)
@@ -96,7 +113,7 @@ Create a `.env.local` file (see `.env.example`):
 
 - **Components**: Functional components with `React.FC<Props>`, one component per file
 - **Services**: Class-based singletons (`paymentService`, `notificationService`) or pure function modules (`geoService`, `matchingService`)
-- **State**: `useState` + `useEffect` for local state, `useContext` for auth, `useCallback`/`useRef` for performance
+- **State**: Zustand stores for global state, `useState`/`useEffect` for component-local state, `useContext` for auth, `useCallback`/`useRef` for performance
 - **Naming**: PascalCase for components/types, camelCase for functions/variables
 - **DB field mapping**: camelCase in TypeScript, snake_case in PostgreSQL (mapped in `AuthContext.tsx` and `useRealTimeBooking.ts`)
 - **Section headers**: `// ============================================` blocks to separate logical sections
@@ -107,17 +124,18 @@ Create a `.env.local` file (see `.env.example`):
 ## Architecture Patterns
 
 ### Current
-- **Routing**: Tab-based via `activeTab` state in `App.tsx` (switch/case rendering)
+- **Routing**: React Router v7 — URL-based routes (`/`, `/search`, `/post`, `/planner`, `/history`, `/profile`, `/recurring`, `/wallet`), `NavLink` for bottom nav, `useNavigate` for programmatic navigation
 - **Auth**: React Context (`AuthProvider` → `useAuth()`) wrapping the entire app
-- **State**: Component-local state + prop drilling; Auth context for user/profile
+- **State**: Zustand stores for global state (`useRideStore`, `useLocationStore`, `useChatStore`, `useNotificationStore`); `useState`/`useEffect` for component-local state; no prop drilling
+- **Styling**: Tailwind CSS v4 (installed via `@tailwindcss/vite`) + Shadcn/ui base components in `components/ui/`
+- **Icons**: lucide-react across all components (3 brand/marker SVGs remain intentionally)
 - **Realtime**: Supabase channels — `postgres_changes` for booking updates, `broadcast` for driver location
 - **Payments**: Currency-based provider selection (`NGN/GHS/KES/ZAR` → Paystack, others → Stripe)
 
 ### Planned Evolution
-- **Shadcn/ui**: Replace CDN Tailwind with installed Tailwind + Shadcn/ui component library (see ADR-004)
-- **React Router v7**: Replace tab navigation with URL routing, deep linking, route guards (see ADR-005)
-- **Zustand**: Add lightweight global stores for rides, bookings, notifications, wallet, location (see ADR-006)
+- **Shadcn/ui expansion**: Add Dialog, Select, Textarea, Switch, Skeleton components; migrate more UI patterns to Shadcn/ui (see ADR-004)
 - **Figma workflow**: Design-first process using Claude's Figma MCP integration (see ADR-008)
+- **Supabase integration**: Replace mock data with real Supabase queries (deferred)
 
 ## Database Schema
 
@@ -162,8 +180,8 @@ This project uses a **design-first workflow** with Claude's Figma MCP:
 
 1. Designers create screens in Figma
 2. Developers use `get_design_context(fileKey, nodeId)` to pull specs and screenshots
-3. Claude generates code using project components (Shadcn/ui once migrated)
+3. Claude generates code using project components (Shadcn/ui base components in `components/ui/`)
 4. `add_code_connect_map` creates persistent Figma ↔ code component mappings
-5. Design tokens sync to `tailwind.config.ts` CSS variables
+5. Design tokens sync to `index.css` CSS variables (Tailwind v4 `@theme` block)
 
 See `docs/design-system.md` for full workflow and `docs/adr/008-figma-design-first-workflow.md` for the decision record.

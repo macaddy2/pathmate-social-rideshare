@@ -1,18 +1,21 @@
-
 import React from 'react';
+import { useNavigate } from 'react-router';
+import { User, Car } from 'lucide-react';
 import { UserRole } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { useRideStore } from '../stores/useRideStore';
 
-interface HomeProps {
-  setRole: (role: UserRole) => void;
-  setActiveTab: (tab: string) => void;
-  avgRiderRating: number;
-  avgDriverRating: number;
-}
+const Home: React.FC = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { setRole, getAverageRating } = useRideStore();
 
-const Home: React.FC<HomeProps> = ({ setRole, setActiveTab, avgRiderRating, avgDriverRating }) => {
+  const avgRiderRating = getAverageRating(user?.id || 'You', 'RIDER');
+  const avgDriverRating = getAverageRating(user?.id || 'You', 'DRIVER');
+
   const handleSelectRole = (role: UserRole) => {
     setRole(role);
-    setActiveTab(role === UserRole.RIDER ? 'search' : 'post');
+    navigate(role === UserRole.RIDER ? '/search' : '/post');
   };
 
   return (
@@ -38,27 +41,22 @@ const Home: React.FC<HomeProps> = ({ setRole, setActiveTab, avgRiderRating, avgD
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <button 
+        <button
           onClick={() => handleSelectRole(UserRole.RIDER)}
           className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center gap-3 transition-transform active:scale-95 hover:border-indigo-200"
         >
           <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
+            <User className="w-6 h-6" />
           </div>
           <span className="font-semibold text-gray-800">I need a ride</span>
         </button>
 
-        <button 
+        <button
           onClick={() => handleSelectRole(UserRole.DRIVER)}
           className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center gap-3 transition-transform active:scale-95 hover:border-indigo-200"
         >
           <div className="w-12 h-12 bg-green-50 text-green-600 rounded-full flex items-center justify-center">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
-            </svg>
+            <Car className="w-6 h-6" />
           </div>
           <span className="font-semibold text-gray-800">I am driving</span>
         </button>

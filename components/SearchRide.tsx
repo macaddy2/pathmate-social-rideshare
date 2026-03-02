@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { Map, MapPin, MapPinned, Info, Star, ChevronDown, MessageCircle, Check } from 'lucide-react';
 import { getRouteInsights } from '../services/geminiService';
 import { findMatchingRides, generateMatchExplanation } from '../services/matchingService';
 import { createGeoRoute, formatDistance, formatDuration } from '../services/geoService';
@@ -11,16 +12,13 @@ import RatingModal from './RatingModal';
 import RouteMap from './RouteMap';
 import PlacesAutocomplete, { PlaceResult } from './PlacesAutocomplete';
 import type { Rating, GeoPoint, DriverRide, RideRequest, RouteMatch, RideStatus, UserRole } from '../types';
+import { useLocationStore } from '../stores/useLocationStore';
+import { useRideStore } from '../stores/useRideStore';
+import { useChatStore } from '../stores/useChatStore';
 
 // ============================================
 // TYPES
 // ============================================
-
-interface SearchRideProps {
-  userLocation?: GeoPoint;
-  onRate: (rating: Rating) => void;
-  onOpenChat: (name: string, id: string) => void;
-}
 
 interface SearchState {
   pickupAddress: string;
@@ -160,7 +158,10 @@ const generateMockDriverRides = (): DriverRide[] => {
 // COMPONENT
 // ============================================
 
-const SearchRide: React.FC<SearchRideProps> = ({ userLocation, onRate, onOpenChat }) => {
+const SearchRide: React.FC = () => {
+  const { userLocation } = useLocationStore();
+  const { addRating: onRate } = useRideStore();
+  const { openChat: onOpenChat } = useChatStore();
   // Search state
   const [search, setSearch] = useState<SearchState>({
     pickupAddress: '',
@@ -327,14 +328,7 @@ const SearchRide: React.FC<SearchRideProps> = ({ userLocation, onRate, onOpenCha
               showMap ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-600'
             }`}
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-              />
-            </svg>
+            <Map className="w-5 h-5" />
           </button>
         </div>
 
@@ -362,14 +356,7 @@ const SearchRide: React.FC<SearchRideProps> = ({ userLocation, onRate, onOpenCha
             label="PICKUP"
             placeholder="Where are you?"
             icon={
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                />
-              </svg>
+              <MapPin className="w-5 h-5" />
             }
           />
 
@@ -381,20 +368,7 @@ const SearchRide: React.FC<SearchRideProps> = ({ userLocation, onRate, onOpenCha
             label="DROPOFF"
             placeholder="Where are you going?"
             icon={
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-              </svg>
+              <MapPinned className="w-5 h-5" />
             }
           />
 
@@ -419,14 +393,7 @@ const SearchRide: React.FC<SearchRideProps> = ({ userLocation, onRate, onOpenCha
       {aiAnalysis && (
         <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 shadow-sm animate-fadeIn">
           <h3 className="text-sm font-bold text-blue-800 mb-2 flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
+            <Info className="w-4 h-4" />
             PathMate Smart Insights
           </h3>
           <p className="text-sm text-blue-700 leading-relaxed whitespace-pre-wrap">
@@ -499,9 +466,7 @@ const SearchRide: React.FC<SearchRideProps> = ({ userLocation, onRate, onOpenCha
                         <div className="font-bold text-gray-900">{driver.displayName}</div>
                         <div className="text-xs text-gray-500 flex items-center gap-2">
                           <span className="flex items-center gap-1">
-                            <svg className="w-3 h-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
+                            <Star className="w-3 h-3 text-yellow-500" fill="currentColor" />
                             {driver.driverRating?.toFixed(1)}
                           </span>
                           <span>•</span>
@@ -548,9 +513,7 @@ const SearchRide: React.FC<SearchRideProps> = ({ userLocation, onRate, onOpenCha
                   {/* Vehicle info */}
                   {driver.vehicleMake && (
                     <div className="mt-3 text-xs text-gray-500 flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
+                      <ChevronDown className="w-4 h-4" />
                       {driver.vehicleColor} {driver.vehicleMake} {driver.vehicleModel}
                     </div>
                   )}
@@ -561,28 +524,14 @@ const SearchRide: React.FC<SearchRideProps> = ({ userLocation, onRate, onOpenCha
                       onClick={() => onOpenChat(driver.displayName, driver.id)}
                       className="flex-1 p-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                        />
-                      </svg>
+                      <MessageCircle className="w-4 h-4" />
                       <span className="text-sm font-medium">Chat</span>
                     </button>
                     <button
                       onClick={() => handleJoin(match)}
                       className="flex-1 p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
                     >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
+                      <Check className="w-4 h-4" />
                       <span className="text-sm font-medium">Request to Join</span>
                     </button>
                   </div>
@@ -596,19 +545,7 @@ const SearchRide: React.FC<SearchRideProps> = ({ userLocation, onRate, onOpenCha
       {/* No results */}
       {!isLoading && matches.length === 0 && (search.pickupAddress || search.dropoffAddress) && aiAnalysis && (
         <div className="bg-gray-50 rounded-2xl p-6 text-center">
-          <svg
-            className="w-12 h-12 text-gray-400 mx-auto mb-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-            />
-          </svg>
+          <Map className="w-12 h-12 text-gray-400 mx-auto mb-4" strokeWidth={1.5} />
           <h3 className="font-bold text-gray-800 mb-2">No drivers found</h3>
           <p className="text-sm text-gray-500">
             No one is heading your direction right now. Try again later or post your route as a rider to get notified when a match is available.

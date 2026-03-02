@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { MapPin } from 'lucide-react';
 import { useJsApiLoader } from '@react-google-maps/api';
 import type { GeoPoint } from '../types';
 
@@ -307,25 +308,7 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
                 index === selectedIndex ? 'bg-indigo-50' : ''
               }`}
             >
-              <svg
-                className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-              </svg>
+              <MapPin className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">
                   {suggestion.structured_formatting.main_text}
