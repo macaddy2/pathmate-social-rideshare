@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { AlertTriangle, X, User, Phone } from 'lucide-react';
 import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
 import { useRealTimeBooking, useDriverLocationTracker } from '../hooks/useRealTimeBooking';
 import type { GeoPoint, Booking } from '../types';
@@ -141,9 +142,7 @@ const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, 
         <div className="bg-white rounded-2xl p-6 max-w-md w-full">
           <div className="text-center">
             <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
+              <AlertTriangle className="w-8 h-8 text-amber-600" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Map Unavailable</h3>
             <p className="text-gray-500 text-sm mb-4">
@@ -188,9 +187,7 @@ const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, 
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
           >
-            <svg className="w-6 h-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="w-6 h-6 text-gray-600" />
           </button>
           <div>
             <h2 className="font-semibold text-gray-900">Live Tracking</h2>
@@ -340,18 +337,14 @@ const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, 
             {!isDriver && (
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
+                  <User className="w-6 h-6 text-indigo-600" />
                 </div>
                 <div className="flex-1">
                   <p className="font-medium text-gray-900">Your Driver</p>
                   <p className="text-sm text-gray-500">Toyota Camry • ABC 123</p>
                 </div>
                 <button className="p-3 bg-green-100 rounded-full text-green-600 hover:bg-green-200 transition-colors">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
+                  <Phone className="w-6 h-6" />
                 </button>
               </div>
             )}
@@ -393,9 +386,7 @@ const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, 
             {/* Action buttons based on status */}
             {booking.status === 'picked_up' && !isDriver && (
               <button className="w-full bg-red-600 text-white font-medium py-3 rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+                <AlertTriangle className="w-5 h-5" />
                 Emergency
               </button>
             )}

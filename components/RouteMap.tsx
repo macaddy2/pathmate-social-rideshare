@@ -4,6 +4,7 @@
  */
 
 import React, { useCallback, useState, useEffect } from 'react';
+import { AlertTriangle, Map as MapIcon } from 'lucide-react';
 import {
   GoogleMap,
   useJsApiLoader,
@@ -260,9 +261,7 @@ const RouteMap: React.FC<RouteMapProps> = ({
         style={{ height }}
       >
         <div className="flex flex-col items-center gap-2 text-center px-4">
-          <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
+          <AlertTriangle className="w-8 h-8 text-red-500" />
           <span className="text-sm text-red-600">Failed to load map</span>
           <span className="text-xs text-red-400">Check your API key</span>
         </div>
@@ -278,9 +277,7 @@ const RouteMap: React.FC<RouteMapProps> = ({
         style={{ height }}
       >
         <div className="flex flex-col items-center gap-2 text-center px-4">
-          <svg className="w-8 h-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-          </svg>
+          <MapIcon className="w-8 h-8 text-amber-500" />
           <span className="text-sm font-medium text-amber-700">Map Preview</span>
           <span className="text-xs text-amber-600">Add Google Maps API key to enable</span>
         </div>

@@ -11,10 +11,19 @@
   "dependencies": {
     "@google/genai": "^1.37.0",
     "@googlemaps/polyline-codec": "^1.0.28",
+    "@radix-ui/react-slot": "^1.2.4",
     "@react-google-maps/api": "^2.20.8",
     "@supabase/supabase-js": "^2.90.1",
+    "@tailwindcss/vite": "^4.2.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.575.0",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "react-dom": "^19.2.3",
+    "react-router": "^7.13.1",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.1",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

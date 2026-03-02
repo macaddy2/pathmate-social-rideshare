@@ -3,8 +3,9 @@
  * Social rideshare application with authentication and real-time features
  */
 
-import React, { useState, useEffect } from 'react';
-import { UserRole, Rating } from './types';
+import React, { useEffect } from 'react';
+import { Routes, Route, Navigate } from 'react-router';
+import { UserRole } from './types';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
 import Home from './components/Home';
@@ -17,6 +18,9 @@ import RideHistory from './components/RideHistory';
 import ProfileSettings from './components/ProfileSettings';
 import RecurringRides from './components/RecurringRides';
 import WalletScreen from './components/WalletScreen';
+import { useRideStore } from './stores/useRideStore';
+import { useLocationStore } from './stores/useLocationStore';
+import { useChatStore } from './stores/useChatStore';
 
 // ============================================
 // MAIN APP CONTENT (Authenticated)
@@ -24,33 +28,13 @@ import WalletScreen from './components/WalletScreen';
 
 const AppContent: React.FC = () => {
   const { user, profile, loading } = useAuth();
-
-  const [activeTab, setActiveTab] = useState('home');
-  const [role, setRole] = useState<UserRole>(UserRole.GUEST);
-  const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | undefined>(undefined);
-  const [activeChat, setActiveChat] = useState<{ targetName: string, targetId: string } | null>(null);
-
-  // Ratings state (will be moved to Supabase later)
-  const [ratings, setRatings] = useState<Rating[]>([
-    { fromId: 'a', toId: 'You', score: 5, role: 'DRIVER' },
-    { fromId: 'b', toId: 'You', score: 4, role: 'DRIVER' },
-    { fromId: 'c', toId: 'You', score: 5, role: 'RIDER' },
-  ]);
+  const { setRole } = useRideStore();
+  const { initGeolocation } = useLocationStore();
+  const { activeChat, closeChat } = useChatStore();
 
   // Get user location on mount
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-        },
-        (error) => console.warn("Geolocation denied:", error.message),
-        { enableHighAccuracy: true }
-      );
-    }
+    initGeolocation();
   }, []);
 
   // Set role from profile when available
@@ -59,17 +43,6 @@ const AppContent: React.FC = () => {
       setRole(profile.defaultRole as UserRole);
     }
   }, [profile]);
-
-  const addRating = (newRating: Rating) => {
-    setRatings(prev => [...prev, newRating]);
-  };
-
-  const getAverageRating = (userId: string, targetRole: 'RIDER' | 'DRIVER') => {
-    const relevant = ratings.filter(r => r.toId === userId && r.role === targetRole);
-    if (relevant.length === 0) return 5.0;
-    const sum = relevant.reduce((acc, curr) => acc + curr.score, 0);
-    return Math.round((sum / relevant.length) * 10) / 10;
-  };
 
   // Show loading spinner while checking auth
   if (loading) {
@@ -88,61 +61,23 @@ const AppContent: React.FC = () => {
     return <AuthScreen />;
   }
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'home':
-        return (
-          <Home
-            setRole={setRole}
-            setActiveTab={setActiveTab}
-            avgRiderRating={getAverageRating(user.id, 'RIDER')}
-            avgDriverRating={getAverageRating(user.id, 'DRIVER')}
-          />
-        );
-      case 'search':
-        return (
-          <SearchRide
-            userLocation={userLocation}
-            onRate={addRating}
-            onOpenChat={(name, id) => setActiveChat({ targetName: name, targetId: id })}
-          />
-        );
-      case 'post':
-        return (
-          <PostRide
-            onRate={addRating}
-            onOpenChat={(name, id) => setActiveChat({ targetName: name, targetId: id })}
-          />
-        );
-      case 'planner':
-        return <AIPlanner />;
-      case 'history':
-        return <RideHistory />;
-      case 'profile':
-        return <ProfileSettings />;
-      case 'recurring':
-        return <RecurringRides />;
-      case 'wallet':
-        return <WalletScreen />;
-      default:
-        return (
-          <Home
-            setRole={setRole}
-            setActiveTab={setActiveTab}
-            avgRiderRating={getAverageRating(user.id, 'RIDER')}
-            avgDriverRating={getAverageRating(user.id, 'DRIVER')}
-          />
-        );
-    }
-  };
-
   return (
-    <Layout activeTab={activeTab} setActiveTab={setActiveTab} role={role}>
-      {renderContent()}
+    <Layout>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/search" element={<SearchRide />} />
+        <Route path="/post" element={<PostRide />} />
+        <Route path="/planner" element={<AIPlanner />} />
+        <Route path="/history" element={<RideHistory />} />
+        <Route path="/profile" element={<ProfileSettings />} />
+        <Route path="/recurring" element={<RecurringRides />} />
+        <Route path="/wallet" element={<WalletScreen />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
       {activeChat && (
         <ChatWindow
           isOpen={!!activeChat}
-          onClose={() => setActiveChat(null)}
+          onClose={closeChat}
           targetName={activeChat.targetName}
           targetId={activeChat.targetId}
         />
