@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { Route } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import type { RideHistoryEntry, RideStats } from '../types';
 
@@ -113,11 +114,7 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onRate }) => {
             </div>
 
             <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <circle cx="12" cy="5" r="2" strokeWidth="2" />
-                    <circle cx="12" cy="19" r="2" strokeWidth="2" />
-                    <path strokeLinecap="round" strokeWidth="2" d="M12 7v10" />
-                </svg>
+                <Route className="w-4 h-4 text-gray-400" />
                 <div className="flex-1">
                     <p className="text-gray-800">{ride.origin}</p>
                     <p className="text-gray-500">{ride.destination}</p>
