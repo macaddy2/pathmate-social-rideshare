@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { paymentService, formatCurrency, getTransactionStatusColor, getProviderForCurrency } from '../services/paymentService';
 import type { PaymentTransaction, Wallet } from '../types';
@@ -167,9 +168,7 @@ const AddFundsModal: React.FC<AddFundsModalProps> = ({ isOpen, onClose, onSucces
                 <div className="flex items-center justify-between">
                     <h3 className="text-lg font-bold">Add Funds</h3>
                     <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <X className="w-5 h-5" />
                     </button>
                 </div>
 

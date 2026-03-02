@@ -9,15 +9,13 @@ import { createGeoRoute, formatDistance, formatDuration } from '../services/geoS
 import RatingModal from './RatingModal';
 import RouteMap from './RouteMap';
 import PlacesAutocomplete, { PlaceResult } from './PlacesAutocomplete';
+import { useRideStore } from '../stores/useRideStore';
+import { useChatStore } from '../stores/useChatStore';
+import { Check, X, Bell, Map, ChevronDown, Star, MessageCircle } from 'lucide-react';
 
 // ============================================
 // TYPES
 // ============================================
-
-interface PostRideProps {
-  onRate: (rating: Rating) => void;
-  onOpenChat: (name: string, id: string) => void;
-}
 
 interface RideFormState {
   originAddress: string;
@@ -75,7 +73,9 @@ const DEFAULT_FORM_STATE: RideFormState = {
 // COMPONENT
 // ============================================
 
-const PostRide: React.FC<PostRideProps> = ({ onRate, onOpenChat }) => {
+const PostRide: React.FC = () => {
+  const { addRating: onRate } = useRideStore();
+  const { openChat: onOpenChat } = useChatStore();
   // Form state
   const [form, setForm] = useState<RideFormState>(DEFAULT_FORM_STATE);
   const [showMap, setShowMap] = useState(false);
@@ -338,20 +338,13 @@ const PostRide: React.FC<PostRideProps> = ({ onRate, onOpenChat }) => {
               : 'bg-blue-600 text-white'
           }`}
         >
-          <svg className="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            {notification.type === 'success' ? (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-            ) : notification.type === 'error' ? (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            ) : (
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-              />
-            )}
-          </svg>
+          {notification.type === 'success' ? (
+            <Check className="w-6 h-6 shrink-0" />
+          ) : notification.type === 'error' ? (
+            <X className="w-6 h-6 shrink-0" />
+          ) : (
+            <Bell className="w-6 h-6 shrink-0" />
+          )}
           <p className="text-sm font-bold">{notification.message}</p>
         </div>
       )}
@@ -366,14 +359,7 @@ const PostRide: React.FC<PostRideProps> = ({ onRate, onOpenChat }) => {
               showMap ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-600'
             }`}
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-              />
-            </svg>
+            <Map className="w-5 h-5" />
           </button>
         </div>
         <p className="text-xs text-gray-500 mb-6 uppercase tracking-wider font-bold">
@@ -555,19 +541,7 @@ const PostRide: React.FC<PostRideProps> = ({ onRate, onOpenChat }) => {
 
         {activeRides.length === 0 ? (
           <div className="text-center py-8">
-            <svg
-              className="w-12 h-12 mx-auto text-gray-300 mb-3"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="1.5"
-                d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-              />
-            </svg>
+            <Map className="w-12 h-12 mx-auto text-gray-300 mb-3" />
             <p className="text-sm text-gray-400">No active routes</p>
             <p className="text-xs text-gray-300 mt-1">Post a route to start earning</p>
           </div>
@@ -606,16 +580,11 @@ const PostRide: React.FC<PostRideProps> = ({ onRate, onOpenChat }) => {
                           {ride.matchedRiders.length} rider{ride.matchedRiders.length !== 1 ? 's' : ''}
                         </span>
                       )}
-                      <svg
+                      <ChevronDown
                         className={`w-5 h-5 text-gray-400 transition-transform ${
                           selectedRide === ride.id ? 'rotate-180' : ''
                         }`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
+                      />
                     </div>
                   </div>
                 </div>
@@ -646,9 +615,7 @@ const PostRide: React.FC<PostRideProps> = ({ onRate, onOpenChat }) => {
                                     {rider.pickupAddress} → {rider.dropoffAddress}
                                   </div>
                                   <div className="flex items-center gap-1 mt-0.5">
-                                    <svg className="w-3 h-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                    </svg>
+                                    <Star className="w-3 h-3 text-yellow-500 fill-current" />
                                     <span className="text-xs text-gray-500">{rider.rating}</span>
                                   </div>
                                 </div>
@@ -661,17 +628,13 @@ const PostRide: React.FC<PostRideProps> = ({ onRate, onOpenChat }) => {
                                       onClick={() => handleRiderAction(ride.id, rider.id, 'accept')}
                                       className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
                                     >
-                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                      </svg>
+                                      <Check className="w-4 h-4" />
                                     </button>
                                     <button
                                       onClick={() => handleRiderAction(ride.id, rider.id, 'reject')}
                                       className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
                                     >
-                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                      </svg>
+                                      <X className="w-4 h-4" />
                                     </button>
                                   </>
                                 ) : (
@@ -680,17 +643,13 @@ const PostRide: React.FC<PostRideProps> = ({ onRate, onOpenChat }) => {
                                       onClick={() => onOpenChat(rider.name, rider.id)}
                                       className="p-2 bg-indigo-100 text-indigo-600 rounded-lg hover:bg-indigo-200 transition-colors"
                                     >
-                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                                      </svg>
+                                      <MessageCircle className="w-4 h-4" />
                                     </button>
                                     <button
                                       onClick={() => setRatingModal({ isOpen: true, targetName: rider.name, targetId: rider.id })}
                                       className="p-2 bg-yellow-100 text-yellow-600 rounded-lg hover:bg-yellow-200 transition-colors"
                                     >
-                                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                      </svg>
+                                      <Star className="w-4 h-4 fill-current" />
                                     </button>
                                   </>
                                 )}
