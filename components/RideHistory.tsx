@@ -7,6 +7,10 @@ import React, { useState, useMemo } from 'react';
 import { Route } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import type { RideHistoryEntry, RideStats } from '../types';
+import { Button } from './ui/button';
+import { Card, CardContent } from './ui/card';
+import { Badge } from './ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 // ============================================
 // MOCK DATA (will be replaced with Supabase)
@@ -54,14 +58,16 @@ interface StatsCardProps {
 }
 
 const StatsCard: React.FC<StatsCardProps> = ({ icon, label, value, subtext, color }) => (
-    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-        <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center mb-3`}>
-            {icon}
-        </div>
-        <p className="text-xs text-gray-500 uppercase tracking-wide">{label}</p>
-        <p className="text-xl font-bold text-gray-900">{value}</p>
-        {subtext && <p className="text-xs text-gray-400 mt-1">{subtext}</p>}
-    </div>
+    <Card className="rounded-2xl">
+        <CardContent className="p-4">
+            <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center mb-3`}>
+                {icon}
+            </div>
+            <p className="text-xs text-gray-500 uppercase tracking-wide">{label}</p>
+            <p className="text-xl font-bold text-gray-900">{value}</p>
+            {subtext && <p className="text-xs text-gray-400 mt-1">{subtext}</p>}
+        </CardContent>
+    </Card>
 );
 
 // ============================================
@@ -90,7 +96,8 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onRate }) => {
     };
 
     return (
-        <div className={`bg-white rounded-2xl p-4 shadow-sm border border-gray-100 ${ride.status === 'cancelled' ? 'opacity-60' : ''}`}>
+        <Card className={`rounded-2xl ${ride.status === 'cancelled' ? 'opacity-60' : ''}`}>
+      <CardContent className="p-4">
             <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${ride.role === 'driver' ? 'bg-green-100' : 'bg-blue-100'
@@ -106,10 +113,9 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onRate }) => {
                     <p className={`font-bold ${ride.role === 'driver' ? 'text-green-600' : 'text-gray-900'}`}>
                         {ride.role === 'driver' ? '+' : ''}{formatCurrency(ride.price, ride.currency)}
                     </p>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${ride.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                        }`}>
+                    <Badge variant={ride.status === 'completed' ? 'success' : 'destructive'} className="text-xs">
                         {ride.status}
-                    </span>
+                    </Badge>
                 </div>
             </div>
 
@@ -129,12 +135,14 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onRate }) => {
                 </div>
 
                 {ride.status === 'completed' && !ride.ratingGiven && onRate && (
-                    <button
+                    <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => onRate(ride.id)}
-                        className="text-xs bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full font-medium hover:bg-indigo-100 transition-colors"
+                        className="text-xs bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full font-medium hover:bg-indigo-100 h-auto"
                     >
                         Rate Ride
-                    </button>
+                    </Button>
                 )}
 
                 {ride.ratingGiven && (
@@ -143,7 +151,8 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onRate }) => {
                     </div>
                 )}
             </div>
-        </div>
+      </CardContent>
+    </Card>
     );
 };
 
@@ -202,10 +211,10 @@ const RideHistory: React.FC = () => {
     return (
         <div className="space-y-6 animate-fadeIn pb-24">
             {/* Header */}
-            <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-3xl p-6 text-white shadow-xl">
+            <Card className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-3xl p-6 text-white shadow-xl border-0">
                 <h2 className="text-xl font-bold mb-1">Ride History</h2>
                 <p className="text-purple-200 text-sm">Track your journeys and impact</p>
-            </div>
+            </Card>
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-3">
@@ -256,16 +265,17 @@ const RideHistory: React.FC = () => {
                     ))}
                 </div>
 
-                <select
-                    value={timeFilter}
-                    onChange={(e) => setTimeFilter(e.target.value as TimeFilter)}
-                    className="bg-gray-100 border-0 rounded-xl px-4 py-2 text-sm font-medium text-gray-700 focus:ring-2 focus:ring-indigo-500"
-                >
-                    <option value="week">Last 7 days</option>
-                    <option value="month">Last month</option>
-                    <option value="year">Last year</option>
-                    <option value="all">All time</option>
-                </select>
+                <Select value={timeFilter} onValueChange={(value) => setTimeFilter(value as TimeFilter)}>
+                    <SelectTrigger className="w-[140px] bg-gray-100 border-0 rounded-xl text-sm font-medium">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="week">Last 7 days</SelectItem>
+                        <SelectItem value="month">Last month</SelectItem>
+                        <SelectItem value="year">Last year</SelectItem>
+                        <SelectItem value="all">All time</SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
 
             {/* Ride List */}
