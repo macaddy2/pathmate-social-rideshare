@@ -3,6 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, Lightbulb, Send } from 'lucide-react';
 import { Message } from '../types';
 import { getComplexCoordinationAdvice } from '../services/geminiService';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
 
 interface ChatWindowProps {
   isOpen: boolean;
@@ -74,9 +76,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose, targetName, ta
       {/* Header */}
       <div className="bg-indigo-600 text-white p-4 flex items-center justify-between shadow-md">
         <div className="flex items-center gap-3">
-          <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-full">
+          <Button variant="ghost" size="icon" onClick={onClose} className="text-white hover:bg-white/10 rounded-full">
             <ChevronLeft className="w-6 h-6" />
-          </button>
+          </Button>
           <div>
             <div className="font-bold text-lg">{targetName}</div>
             <div className="text-[10px] text-indigo-100 uppercase tracking-widest font-bold">Active Journey Chat</div>
@@ -126,28 +128,31 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose, targetName, ta
       {/* Input Area */}
       <div className="p-4 bg-white border-t border-gray-100 shadow-2xl">
         <div className="flex gap-2">
-          <input 
+          <Input
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Type a message..."
-            className="flex-1 bg-gray-100 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
+            className="flex-1 bg-gray-100 border-none rounded-2xl px-4 py-3"
           />
-          <button 
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handleAiConcierge}
             title="Ask AI Advisor"
-            className="p-3 bg-purple-100 text-purple-600 rounded-2xl hover:bg-purple-200 transition-colors"
+            className="bg-purple-100 text-purple-600 rounded-2xl hover:bg-purple-200 p-3 h-auto w-auto"
           >
             <Lightbulb className="w-5 h-5" />
-          </button>
-          <button 
+          </Button>
+          <Button
+            size="icon"
             onClick={handleSend}
             disabled={!inputText.trim()}
-            className="p-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-lg"
+            className="bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 p-3 h-auto w-auto shadow-lg"
           >
             <Send className="w-5 h-5" />
-          </button>
+          </Button>
         </div>
         <p className="text-[10px] text-gray-400 mt-2 text-center">Use the bulb icon for deep AI thinking on complex travel logic.</p>
       </div>

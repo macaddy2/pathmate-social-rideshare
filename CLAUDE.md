@@ -55,27 +55,38 @@ pathmate-social-rideshare/
 │   └── AuthContext.tsx         # Auth state, sign-in/up/out, profile CRUD, ProtectedRoute
 ├── hooks/                     # Custom React hooks
 │   └── useRealTimeBooking.ts   # Supabase realtime: booking status + driver location
-├── stores/                    # Zustand global state stores
+├── stores/                    # Zustand global state stores (8 stores)
+│   ├── useActiveRidesStore.ts  # Driver's active posted rides + matched riders
 │   ├── useChatStore.ts         # Active chat state (targetName, targetId)
 │   ├── useLocationStore.ts     # Geolocation state + init action
 │   ├── useNotificationStore.ts # Notification state wrapping notificationService
-│   └── useRideStore.ts         # Role + ratings state (mock data)
+│   ├── useRecurringRidesStore.ts # Recurring ride schedules + toggle
+│   ├── useRideStore.ts         # Role + ratings state (mock data)
+│   ├── useSearchStore.ts       # Search form state (pickup/dropoff persistence)
+│   └── useWalletStore.ts       # Wallet balance + transactions
 ├── lib/                       # Client libraries
 │   ├── supabase.ts             # Supabase client config + Database type definitions
 │   └── utils.ts                # Shadcn cn() utility (clsx + tailwind-merge)
-├── components/ui/             # Shadcn/ui base components
+├── components/ui/             # Shadcn/ui base components (10 components)
 │   ├── avatar.tsx              # Avatar with image + fallback
 │   ├── badge.tsx               # Badge with variants (default, success, warning, etc.)
 │   ├── button.tsx              # Button with variants (default, outline, ghost, etc.)
 │   ├── card.tsx                # Card, CardHeader, CardContent, CardFooter
+│   ├── dialog.tsx              # Modal dialog (Radix Dialog)
 │   ├── input.tsx               # Styled input with focus ring
-│   └── separator.tsx           # Horizontal/vertical separator
+│   ├── select.tsx              # Styled dropdown (Radix Select)
+│   ├── separator.tsx           # Horizontal/vertical separator
+│   ├── switch.tsx              # Toggle switch (Radix Switch)
+│   └── textarea.tsx            # Multi-line text input
 ├── supabase/                  # Database
 │   └── schema.sql              # Full PostgreSQL schema (7 tables, PostGIS, RLS)
-├── tests/                     # Unit tests (Vitest)
-│   ├── setup.ts                # Test setup
-│   ├── notificationService.test.ts
-│   └── paymentService.test.ts
+├── tests/                     # Unit tests (Vitest) — 121 tests across 5 files
+│   ├── setup.ts                # Test setup (@testing-library/jest-dom)
+│   ├── geoService.test.ts      # 41 tests: distance, polyline, bbox, direction, ETA
+│   ├── matchingService.test.ts # 21 tests: 6-stage pipeline, scoring, batch matching
+│   ├── notificationService.test.ts # 11 tests: CRUD, subscribe, icons, colors
+│   ├── paymentService.test.ts  # 20 tests: wallet, transactions, escrow, currency
+│   └── stores.test.ts          # 28 tests: all 8 Zustand store actions
 ├── docs/                      # Project documentation
 │   ├── prd.md                  # Product Requirements Document
 │   ├── spec.md                 # Technical Specification
@@ -92,7 +103,8 @@ npm install          # Install dependencies
 npm run dev          # Start dev server (port 3000, host 0.0.0.0)
 npm run build        # Production build via Vite
 npm run preview      # Preview production build
-npx vitest           # Run tests
+npm test             # Run tests (vitest run)
+npm run test:watch   # Run tests in watch mode
 npx vitest --coverage # Run tests with coverage
 ```
 
@@ -126,14 +138,14 @@ Create a `.env.local` file (see `.env.example`):
 ### Current
 - **Routing**: React Router v7 — URL-based routes (`/`, `/search`, `/post`, `/planner`, `/history`, `/profile`, `/recurring`, `/wallet`), `NavLink` for bottom nav, `useNavigate` for programmatic navigation
 - **Auth**: React Context (`AuthProvider` → `useAuth()`) wrapping the entire app
-- **State**: Zustand stores for global state (`useRideStore`, `useLocationStore`, `useChatStore`, `useNotificationStore`); `useState`/`useEffect` for component-local state; no prop drilling
+- **State**: Zustand stores for global state (8 stores: `useRideStore`, `useLocationStore`, `useChatStore`, `useNotificationStore`, `useSearchStore`, `useActiveRidesStore`, `useRecurringRidesStore`, `useWalletStore`); `useState`/`useEffect` for component-local state; no prop drilling
 - **Styling**: Tailwind CSS v4 (installed via `@tailwindcss/vite`) + Shadcn/ui base components in `components/ui/`
 - **Icons**: lucide-react across all components (3 brand/marker SVGs remain intentionally)
 - **Realtime**: Supabase channels — `postgres_changes` for booking updates, `broadcast` for driver location
 - **Payments**: Currency-based provider selection (`NGN/GHS/KES/ZAR` → Paystack, others → Stripe)
 
 ### Planned Evolution
-- **Shadcn/ui expansion**: Add Dialog, Select, Textarea, Switch, Skeleton components; migrate more UI patterns to Shadcn/ui (see ADR-004)
+- **Shadcn/ui expansion**: Add Skeleton component; consider Dialog migration for slide-over panels (see ADR-004)
 - **Figma workflow**: Design-first process using Claude's Figma MCP integration (see ADR-008)
 - **Supabase integration**: Replace mock data with real Supabase queries (deferred)
 
@@ -168,11 +180,12 @@ Scoring uses 5 weighted factors: detour efficiency (30%), time alignment (25%), 
 
 ## Testing
 
-- Framework: Vitest with jsdom environment
-- Setup: `tests/setup.ts`
+- Framework: Vitest with jsdom environment + @testing-library/react
+- Setup: `tests/setup.ts` (imports `@testing-library/jest-dom`)
+- Config: `vitest.config.ts` (globals enabled, jsdom environment)
 - Pattern: `tests/**/*.test.{ts,tsx}`
-- Current coverage: 2 test files (notification + payment services)
-- Run: `npx vitest` or `npx vitest --coverage`
+- Coverage: 5 test files, 121 tests (geoService, matchingService, paymentService, notificationService, stores)
+- Run: `npm test` (single run) or `npm run test:watch` (watch mode) or `npx vitest --coverage`
 
 ## Figma Integration
 

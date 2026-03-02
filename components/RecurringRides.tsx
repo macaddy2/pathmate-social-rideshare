@@ -3,11 +3,17 @@
  * Manage recurring commute schedules with auto-matching
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Route, Plus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import PlacesAutocomplete, { PlaceResult } from './PlacesAutocomplete';
 import type { RecurringRide, GeoPoint } from '../types';
+import { useRecurringRidesStore } from '../stores/useRecurringRidesStore';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Card, CardContent } from './ui/card';
+import { Switch } from './ui/switch';
+import { Badge } from './ui/badge';
 
 // ============================================
 // MOCK DATA
@@ -64,16 +70,15 @@ const DaySelector: React.FC<DaySelectorProps> = ({ selectedDays, onChange }) => 
     return (
         <div className="flex gap-2 justify-between">
             {days.map(({ key, label }) => (
-                <button
+                <Button
                     key={key}
+                    variant={selectedDays.includes(key) ? 'default' : 'outline'}
+                    size="icon"
                     onClick={() => toggleDay(key)}
-                    className={`w-10 h-10 rounded-full font-medium transition-all ${selectedDays.includes(key)
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                        }`}
+                    className="w-10 h-10 rounded-full font-medium"
                 >
                     {label}
-                </button>
+                </Button>
             ))}
         </div>
     );
@@ -103,53 +108,56 @@ const RecurringRideCard: React.FC<RideCardProps> = ({ ride, onToggle, onDelete, 
     };
 
     return (
-        <div className={`bg-white rounded-2xl p-4 shadow-sm border border-gray-100 ${!ride.isActive ? 'opacity-60' : ''}`}>
-            <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${ride.role === 'driver' ? 'bg-green-100' : 'bg-blue-100'
-                        }`}>
-                        {ride.role === 'driver' ? '🚗' : '🧑'}
+        <Card className={`rounded-2xl border-gray-100 ${!ride.isActive ? 'opacity-60' : ''}`}>
+            <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${ride.role === 'driver' ? 'bg-green-100' : 'bg-blue-100'
+                            }`}>
+                            {ride.role === 'driver' ? '🚗' : '🧑'}
+                        </div>
+                        <div>
+                            <p className="font-semibold text-gray-900">
+                                {ride.role === 'driver' ? 'Offering Ride' : 'Need Ride'}
+                            </p>
+                            <p className="text-xs text-gray-500">{formatDays(ride.schedule.days)} at {ride.schedule.time}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="font-semibold text-gray-900">
-                            {ride.role === 'driver' ? 'Offering Ride' : 'Need Ride'}
-                        </p>
-                        <p className="text-xs text-gray-500">{formatDays(ride.schedule.days)} at {ride.schedule.time}</p>
+                    <Switch
+                        checked={ride.isActive}
+                        onCheckedChange={() => onToggle(ride.id)}
+                        className="data-[state=checked]:bg-green-500"
+                    />
+                </div>
+
+                <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
+                    <Route className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                        <p className="text-gray-800 truncate">{ride.origin}</p>
+                        <p className="text-gray-500 truncate">{ride.destination}</p>
                     </div>
                 </div>
-                <button
-                    onClick={() => onToggle(ride.id)}
-                    className={`relative w-12 h-7 rounded-full transition-colors ${ride.isActive ? 'bg-green-500' : 'bg-gray-200'
-                        }`}
-                >
-                    <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${ride.isActive ? 'translate-x-6' : 'translate-x-1'
-                        }`} />
-                </button>
-            </div>
 
-            <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
-                <Route className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                    <p className="text-gray-800 truncate">{ride.origin}</p>
-                    <p className="text-gray-500 truncate">{ride.destination}</p>
+                <div className="flex gap-2 pt-3 border-t border-gray-50">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEdit(ride)}
+                        className="flex-1 rounded-xl text-indigo-600 bg-indigo-50 hover:bg-indigo-100 hover:text-indigo-600"
+                    >
+                        Edit
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onDelete(ride.id)}
+                        className="flex-1 rounded-xl text-red-600 bg-red-50 hover:bg-red-100 hover:text-red-600"
+                    >
+                        Delete
+                    </Button>
                 </div>
-            </div>
-
-            <div className="flex gap-2 pt-3 border-t border-gray-50">
-                <button
-                    onClick={() => onEdit(ride)}
-                    className="flex-1 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-xl hover:bg-indigo-100 transition-colors"
-                >
-                    Edit
-                </button>
-                <button
-                    onClick={() => onDelete(ride.id)}
-                    className="flex-1 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-xl hover:bg-red-100 transition-colors"
-                >
-                    Delete
-                </button>
-            </div>
-        </div>
+            </CardContent>
+        </Card>
     );
 };
 
@@ -159,8 +167,15 @@ const RecurringRideCard: React.FC<RideCardProps> = ({ ride, onToggle, onDelete, 
 
 const RecurringRides: React.FC = () => {
     const { user } = useAuth();
-    const [rides, setRides] = useState<RecurringRide[]>(generateMockRecurringRides);
+    const { rides, setRides, addRide, updateRide, deleteRide, toggleActive } = useRecurringRidesStore();
     const [showForm, setShowForm] = useState(false);
+
+    // Initialize with mock data if store is empty
+    useEffect(() => {
+        if (rides.length === 0) {
+            setRides(generateMockRecurringRides());
+        }
+    }, []);
     const [editingRide, setEditingRide] = useState<RecurringRide | null>(null);
 
     // Form state
@@ -221,9 +236,9 @@ const RecurringRides: React.FC = () => {
         };
 
         if (editingRide) {
-            setRides(prev => prev.map(r => r.id === editingRide.id ? newRide : r));
+            updateRide(editingRide.id, newRide);
         } else {
-            setRides(prev => [...prev, newRide]);
+            addRide(newRide);
         }
 
         resetForm();
@@ -231,13 +246,11 @@ const RecurringRides: React.FC = () => {
     };
 
     const handleToggle = (id: string) => {
-        setRides(prev => prev.map(r =>
-            r.id === id ? { ...r, isActive: !r.isActive } : r
-        ));
+        toggleActive(id);
     };
 
     const handleDelete = (id: string) => {
-        setRides(prev => prev.filter(r => r.id !== id));
+        deleteRide(id);
     };
 
     const handleEdit = (ride: RecurringRide) => {
@@ -264,38 +277,40 @@ const RecurringRides: React.FC = () => {
 
             {/* Add Button */}
             {!showForm && (
-                <button
+                <Button
+                    variant="outline"
                     onClick={() => setShowForm(true)}
-                    className="w-full py-4 bg-white rounded-2xl shadow-sm border border-gray-100 text-indigo-600 font-semibold flex items-center justify-center gap-2 hover:bg-indigo-50 transition-colors"
+                    className="w-full h-14 rounded-2xl border-gray-100 text-indigo-600 font-semibold hover:bg-indigo-50"
                 >
                     <Plus className="w-5 h-5" />
                     Add Recurring Ride
-                </button>
+                </Button>
             )}
 
             {/* Form */}
             {showForm && (
-                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
+                <Card className="rounded-2xl border-gray-100">
+                <CardContent className="p-5 space-y-4">
                     <h3 className="font-bold text-gray-900">
                         {editingRide ? 'Edit Recurring Ride' : 'New Recurring Ride'}
                     </h3>
 
                     {/* Role Toggle */}
                     <div className="flex bg-gray-100 rounded-xl p-1">
-                        <button
+                        <Button
+                            variant={role === 'rider' ? 'outline' : 'ghost'}
                             onClick={() => setRole('rider')}
-                            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${role === 'rider' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
-                                }`}
+                            className={`flex-1 rounded-lg text-sm font-medium ${role === 'rider' ? 'bg-white text-gray-900 shadow-sm border-0 hover:bg-white' : 'text-gray-500 hover:bg-transparent hover:text-gray-700'}`}
                         >
                             🧑 I need a ride
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                            variant={role === 'driver' ? 'outline' : 'ghost'}
                             onClick={() => setRole('driver')}
-                            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${role === 'driver' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
-                                }`}
+                            className={`flex-1 rounded-lg text-sm font-medium ${role === 'driver' ? 'bg-white text-gray-900 shadow-sm border-0 hover:bg-white' : 'text-gray-500 hover:bg-transparent hover:text-gray-700'}`}
                         >
                             🚗 I'm driving
-                        </button>
+                        </Button>
                     </div>
 
                     {/* Origin */}
@@ -329,11 +344,11 @@ const RecurringRides: React.FC = () => {
                     {/* Time */}
                     <div>
                         <label className="block text-sm text-gray-600 mb-1">Departure Time</label>
-                        <input
+                        <Input
                             type="time"
                             value={time}
                             onChange={(e) => setTime(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500"
+                            className="h-12 px-4 rounded-xl"
                         />
                     </div>
 
@@ -342,22 +357,22 @@ const RecurringRides: React.FC = () => {
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className="block text-sm text-gray-600 mb-1">Price per seat (₦)</label>
-                                <input
+                                <Input
                                     type="number"
                                     value={pricePerSeat}
                                     onChange={(e) => setPricePerSeat(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500"
+                                    className="h-12 px-4 rounded-xl"
                                 />
                             </div>
                             <div>
                                 <label className="block text-sm text-gray-600 mb-1">Seats available</label>
-                                <input
+                                <Input
                                     type="number"
                                     value={seatsAvailable}
                                     onChange={(e) => setSeatsAvailable(e.target.value)}
-                                    min="1"
-                                    max="6"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500"
+                                    min={1}
+                                    max={6}
+                                    className="h-12 px-4 rounded-xl"
                                 />
                             </div>
                         </div>
@@ -365,34 +380,38 @@ const RecurringRides: React.FC = () => {
 
                     {/* Actions */}
                     <div className="flex gap-3 pt-2">
-                        <button
+                        <Button
                             onClick={handleSubmit}
                             disabled={!origin || !destination || selectedDays.length === 0}
-                            className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex-1 h-12 rounded-xl font-semibold"
                         >
                             {editingRide ? 'Save Changes' : 'Create Schedule'}
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                            variant="outline"
                             onClick={() => {
                                 resetForm();
                                 setShowForm(false);
                             }}
-                            className="px-6 py-3 bg-gray-100 text-gray-600 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+                            className="h-12 px-6 rounded-xl font-medium"
                         >
                             Cancel
-                        </button>
+                        </Button>
                     </div>
-                </div>
+                </CardContent>
+                </Card>
             )}
 
             {/* Info Card */}
-            <div className="bg-amber-50 rounded-2xl p-4 flex items-start gap-3">
-                <span className="text-2xl">💡</span>
-                <div>
-                    <p className="font-medium text-amber-800">How it works</p>
-                    <p className="text-sm text-amber-700">We'll automatically match you with drivers/riders on your route at your scheduled time. You'll get notified when a match is found!</p>
-                </div>
-            </div>
+            <Card className="rounded-2xl bg-amber-50 border-amber-100">
+                <CardContent className="p-4 flex items-start gap-3">
+                    <span className="text-2xl">💡</span>
+                    <div>
+                        <p className="font-medium text-amber-800">How it works</p>
+                        <p className="text-sm text-amber-700">We'll automatically match you with drivers/riders on your route at your scheduled time. You'll get notified when a match is found!</p>
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Rides List */}
             <div className="space-y-3">

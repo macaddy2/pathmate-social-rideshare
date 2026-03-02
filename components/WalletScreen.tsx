@@ -8,6 +8,11 @@ import { X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { paymentService, formatCurrency, getTransactionStatusColor, getProviderForCurrency } from '../services/paymentService';
 import type { PaymentTransaction, Wallet } from '../types';
+import { useWalletStore } from '../stores/useWalletStore';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Card, CardContent } from './ui/card';
+import { Badge } from './ui/badge';
 
 // ============================================
 // TRANSACTION ITEM
@@ -45,9 +50,9 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, currentU
                     <p className="font-medium text-gray-900">
                         {isIncoming ? 'Received' : 'Sent'}
                     </p>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${getTransactionStatusColor(transaction.status)}`}>
+                    <Badge variant="outline" className={`text-xs ${getTransactionStatusColor(transaction.status)}`}>
                         {transaction.status}
-                    </span>
+                    </Badge>
                 </div>
                 <p className="text-xs text-gray-500">{formatTime(transaction.createdAt)}</p>
             </div>
@@ -71,13 +76,14 @@ interface ActionButtonProps {
 }
 
 const ActionButton: React.FC<ActionButtonProps> = ({ icon, label, onClick, color = 'bg-gray-100' }) => (
-    <button
+    <Button
+        variant="ghost"
         onClick={onClick}
-        className={`flex flex-col items-center gap-2 p-4 rounded-2xl ${color} transition-transform active:scale-95`}
+        className={`flex flex-col items-center gap-2 p-4 h-auto rounded-2xl ${color} transition-transform active:scale-95`}
     >
         <span className="text-2xl">{icon}</span>
         <span className="text-sm font-medium text-gray-700">{label}</span>
-    </button>
+    </Button>
 );
 
 // ============================================
@@ -167,9 +173,9 @@ const AddFundsModal: React.FC<AddFundsModalProps> = ({ isOpen, onClose, onSucces
             <div className="relative w-full max-w-sm bg-white rounded-3xl p-6 space-y-4">
                 <div className="flex items-center justify-between">
                     <h3 className="text-lg font-bold">Add Funds</h3>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
+                    <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
                         <X className="w-5 h-5" />
-                    </button>
+                    </Button>
                 </div>
 
                 {/* Currency Selector */}
@@ -193,12 +199,12 @@ const AddFundsModal: React.FC<AddFundsModalProps> = ({ isOpen, onClose, onSucces
 
                 <div>
                     <label className="block text-sm text-gray-600 mb-2">Amount ({selectedCurrency.symbol})</label>
-                    <input
+                    <Input
                         type="number"
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
                         placeholder="Enter amount"
-                        className="w-full px-4 py-3 text-2xl font-bold text-center rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500"
+                        className="h-14 text-2xl font-bold text-center rounded-xl"
                     />
                 </div>
 
@@ -217,13 +223,14 @@ const AddFundsModal: React.FC<AddFundsModalProps> = ({ isOpen, onClose, onSucces
                     ))}
                 </div>
 
-                <button
+                <Button
                     onClick={handleAddFunds}
                     disabled={!amount || isLoading}
-                    className="w-full py-4 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                    size="lg"
+                    className="w-full py-4 rounded-xl font-semibold"
                 >
                     {isLoading ? 'Processing...' : `Add ${formatCurrency(parseInt(amount) || 0, currency)}`}
-                </button>
+                </Button>
 
                 <p className="text-xs text-center text-gray-500">
                     Powered by {selectedCurrency.provider} • Secure payment
@@ -239,20 +246,13 @@ const AddFundsModal: React.FC<AddFundsModalProps> = ({ isOpen, onClose, onSucces
 
 const WalletScreen: React.FC = () => {
     const { user } = useAuth();
-    const [wallet, setWallet] = useState<Wallet | null>(null);
-    const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
+    const { wallet, transactions, refreshWallet } = useWalletStore();
     const [showAddFunds, setShowAddFunds] = useState(false);
     const [showWithdraw, setShowWithdraw] = useState(false);
 
     useEffect(() => {
-        setWallet(paymentService.getWallet());
-        setTransactions(paymentService.getTransactions());
-    }, []);
-
-    const refreshData = () => {
-        setWallet(paymentService.getWallet());
-        setTransactions(paymentService.getTransactions());
-    };
+        refreshWallet();
+    }, [refreshWallet]);
 
     const pendingAmount = transactions
         .filter(t => t.status === 'escrow' && t.toUserId === (user?.id || 'current-user'))
@@ -261,7 +261,7 @@ const WalletScreen: React.FC = () => {
     return (
         <div className="space-y-4 animate-fadeIn pb-24">
             {/* Balance Card */}
-            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-6 text-white shadow-xl">
+            <Card className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-6 text-white shadow-xl border-0">
                 <p className="text-emerald-100 text-sm mb-1">Available Balance</p>
                 <h2 className="text-3xl font-bold mb-4">
                     {formatCurrency(wallet?.balance || 0, wallet?.currency || 'NGN')}
@@ -275,7 +275,7 @@ const WalletScreen: React.FC = () => {
                         </span>
                     </div>
                 )}
-            </div>
+            </Card>
 
             {/* Quick Actions */}
             <div className="grid grid-cols-3 gap-3">
@@ -300,7 +300,8 @@ const WalletScreen: React.FC = () => {
             </div>
 
             {/* Payment Methods */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <Card className="rounded-2xl">
+              <CardContent className="p-4">
                 <h3 className="font-bold text-gray-900 mb-3">Payment Methods</h3>
                 <div className="space-y-2">
                     <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
@@ -311,9 +312,7 @@ const WalletScreen: React.FC = () => {
                             <p className="font-medium text-gray-900">Paystack</p>
                             <p className="text-xs text-gray-500">Nigeria • Cards, Bank, USSD</p>
                         </div>
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                            Active
-                        </span>
+                        <Badge variant="success">Active</Badge>
                     </div>
                     <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                         <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center text-lg">
@@ -323,18 +322,18 @@ const WalletScreen: React.FC = () => {
                             <p className="font-medium text-gray-900">Stripe</p>
                             <p className="text-xs text-gray-500">International • USD, EUR, GBP</p>
                         </div>
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                            Active
-                        </span>
+                        <Badge variant="success">Active</Badge>
                     </div>
                 </div>
-            </div>
+              </CardContent>
+            </Card>
 
             {/* Recent Transactions */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <Card className="rounded-2xl">
+              <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
                     <h3 className="font-bold text-gray-900">Recent Transactions</h3>
-                    <button className="text-sm text-indigo-600 font-medium">See All</button>
+                    <Button variant="link" className="text-sm p-0 h-auto">See All</Button>
                 </div>
 
                 <div className="space-y-2">
@@ -353,10 +352,12 @@ const WalletScreen: React.FC = () => {
                         ))
                     )}
                 </div>
-            </div>
+              </CardContent>
+            </Card>
 
             {/* Escrow Info */}
-            <div className="bg-blue-50 rounded-2xl p-4 flex items-start gap-3">
+            <Card className="bg-blue-50 rounded-2xl border-0">
+              <CardContent className="p-4 flex items-start gap-3">
                 <span className="text-2xl">🔐</span>
                 <div>
                     <p className="font-medium text-blue-800">Escrow Protection</p>
@@ -364,13 +365,14 @@ const WalletScreen: React.FC = () => {
                         Payments are held securely until the ride is completed, protecting both riders and drivers.
                     </p>
                 </div>
-            </div>
+              </CardContent>
+            </Card>
 
             {/* Modals */}
             <AddFundsModal
                 isOpen={showAddFunds}
                 onClose={() => setShowAddFunds(false)}
-                onSuccess={refreshData}
+                onSuccess={refreshWallet}
             />
         </div>
     );

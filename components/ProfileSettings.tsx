@@ -7,6 +7,11 @@ import React, { useState } from 'react';
 import { CheckCircle, Circle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import type { VehicleInfo, NotificationPreferences } from '../types';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Card, CardContent } from './ui/card';
+import { Switch } from './ui/switch';
+import { Badge } from './ui/badge';
 
 // ============================================
 // VERIFICATION BADGE COMPONENT
@@ -18,15 +23,17 @@ interface BadgeProps {
 }
 
 const VerificationBadge: React.FC<BadgeProps> = ({ verified, label }) => (
-    <div className={`flex items-center gap-2 px-3 py-2 rounded-xl ${verified ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-500'
-        }`}>
+    <Badge
+        variant={verified ? 'success' : 'outline'}
+        className={`flex items-center gap-2 px-3 py-2 rounded-xl ${verified ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-500'}`}
+    >
         {verified ? (
             <CheckCircle className="w-5 h-5" />
         ) : (
             <Circle className="w-5 h-5" />
         )}
         <span className="text-sm font-medium">{label}</span>
-    </div>
+    </Badge>
 );
 
 // ============================================
@@ -39,10 +46,12 @@ interface SettingsSectionProps {
 }
 
 const SettingsSection: React.FC<SettingsSectionProps> = ({ title, children }) => (
-    <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-        <h3 className="font-bold text-gray-900 mb-4">{title}</h3>
-        {children}
-    </div>
+    <Card className="rounded-2xl border-gray-100">
+        <CardContent className="p-5">
+            <h3 className="font-bold text-gray-900 mb-4">{title}</h3>
+            {children}
+        </CardContent>
+    </Card>
 );
 
 // ============================================
@@ -62,14 +71,7 @@ const Toggle: React.FC<ToggleProps> = ({ label, description, enabled, onChange }
             <p className="font-medium text-gray-800">{label}</p>
             {description && <p className="text-xs text-gray-500">{description}</p>}
         </div>
-        <button
-            onClick={() => onChange(!enabled)}
-            className={`relative w-12 h-7 rounded-full transition-colors ${enabled ? 'bg-indigo-600' : 'bg-gray-200'
-                }`}
-        >
-            <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${enabled ? 'translate-x-6' : 'translate-x-1'
-                }`} />
-        </button>
+        <Switch checked={enabled} onCheckedChange={onChange} />
     </div>
 );
 
@@ -171,19 +173,17 @@ const ProfileSettings: React.FC = () => {
             {/* Section Tabs */}
             <div className="flex gap-2 overflow-x-auto pb-2">
                 {(['profile', 'vehicle', 'notifications', 'recurring'] as const).map((section) => (
-                    <button
+                    <Button
                         key={section}
+                        variant={activeSection === section ? 'default' : 'secondary'}
                         onClick={() => setActiveSection(section)}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${activeSection === section
-                                ? 'bg-indigo-600 text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
+                        className="rounded-xl whitespace-nowrap"
                     >
                         {section === 'profile' && '👤 Profile'}
                         {section === 'vehicle' && '🚗 Vehicle'}
                         {section === 'notifications' && '🔔 Alerts'}
                         {section === 'recurring' && '🔄 Recurring'}
-                    </button>
+                    </Button>
                 ))}
             </div>
 
@@ -193,12 +193,12 @@ const ProfileSettings: React.FC = () => {
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm text-gray-600 mb-1">Display Name</label>
-                            <input
+                            <Input
                                 type="text"
                                 value={displayName}
                                 onChange={(e) => setDisplayName(e.target.value)}
                                 disabled={!isEditing}
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-50"
+                                className="h-12 px-4 rounded-xl disabled:bg-gray-50"
                                 placeholder="Your name"
                             />
                         </div>
@@ -206,21 +206,22 @@ const ProfileSettings: React.FC = () => {
                         <div>
                             <label className="block text-sm text-gray-600 mb-1">Phone Number</label>
                             <div className="flex gap-2">
-                                <input
+                                <Input
                                     type="tel"
                                     value={phone}
                                     onChange={(e) => setPhone(e.target.value)}
                                     disabled={!isEditing}
-                                    className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-50"
+                                    className="flex-1 h-12 px-4 rounded-xl disabled:bg-gray-50"
                                     placeholder="+234 800 000 0000"
                                 />
                                 {isEditing && !profile?.phoneVerified && (
-                                    <button
+                                    <Button
+                                        variant="secondary"
                                         onClick={handleSendOtp}
-                                        className="px-4 py-3 bg-indigo-100 text-indigo-600 rounded-xl font-medium hover:bg-indigo-200 transition-colors"
+                                        className="h-12 px-4 rounded-xl bg-indigo-100 text-indigo-600 hover:bg-indigo-200"
                                     >
                                         Verify
-                                    </button>
+                                    </Button>
                                 )}
                             </div>
                         </div>
@@ -229,20 +230,20 @@ const ProfileSettings: React.FC = () => {
                             <div className="bg-indigo-50 p-4 rounded-xl">
                                 <label className="block text-sm text-indigo-600 mb-2">Enter verification code</label>
                                 <div className="flex gap-2">
-                                    <input
+                                    <Input
                                         type="text"
                                         value={otp}
                                         onChange={(e) => setOtp(e.target.value)}
                                         maxLength={6}
-                                        className="flex-1 px-4 py-3 rounded-xl border border-indigo-200 text-center text-xl tracking-widest"
+                                        className="flex-1 h-12 px-4 rounded-xl border-indigo-200 text-center text-xl tracking-widest"
                                         placeholder="000000"
                                     />
-                                    <button
+                                    <Button
                                         onClick={handleVerifyOtp}
-                                        className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+                                        className="h-12 px-6 rounded-xl"
                                     >
                                         Confirm
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
                         )}
@@ -250,26 +251,28 @@ const ProfileSettings: React.FC = () => {
                         <div className="flex gap-3 pt-2">
                             {isEditing ? (
                                 <>
-                                    <button
+                                    <Button
                                         onClick={handleSaveProfile}
-                                        className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors"
+                                        className="flex-1 h-12 rounded-xl font-semibold"
                                     >
                                         Save Changes
-                                    </button>
-                                    <button
+                                    </Button>
+                                    <Button
+                                        variant="outline"
                                         onClick={() => setIsEditing(false)}
-                                        className="px-6 py-3 bg-gray-100 text-gray-600 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+                                        className="h-12 px-6 rounded-xl font-medium"
                                     >
                                         Cancel
-                                    </button>
+                                    </Button>
                                 </>
                             ) : (
-                                <button
+                                <Button
+                                    variant="secondary"
                                     onClick={() => setIsEditing(true)}
-                                    className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
+                                    className="flex-1 h-12 rounded-xl font-semibold"
                                 >
                                     Edit Profile
-                                </button>
+                                </Button>
                             )}
                         </div>
                     </div>
@@ -283,21 +286,21 @@ const ProfileSettings: React.FC = () => {
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className="block text-sm text-gray-600 mb-1">Make</label>
-                                <input
+                                <Input
                                     type="text"
                                     value={vehicle.make}
                                     onChange={(e) => setVehicle({ ...vehicle, make: e.target.value })}
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500"
+                                    className="h-12 px-4 rounded-xl"
                                     placeholder="Toyota"
                                 />
                             </div>
                             <div>
                                 <label className="block text-sm text-gray-600 mb-1">Model</label>
-                                <input
+                                <Input
                                     type="text"
                                     value={vehicle.model}
                                     onChange={(e) => setVehicle({ ...vehicle, model: e.target.value })}
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500"
+                                    className="h-12 px-4 rounded-xl"
                                     placeholder="Camry"
                                 />
                             </div>
@@ -306,21 +309,21 @@ const ProfileSettings: React.FC = () => {
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className="block text-sm text-gray-600 mb-1">Year</label>
-                                <input
+                                <Input
                                     type="number"
                                     value={vehicle.year}
                                     onChange={(e) => setVehicle({ ...vehicle, year: parseInt(e.target.value) })}
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500"
+                                    className="h-12 px-4 rounded-xl"
                                     placeholder="2020"
                                 />
                             </div>
                             <div>
                                 <label className="block text-sm text-gray-600 mb-1">Color</label>
-                                <input
+                                <Input
                                     type="text"
                                     value={vehicle.color}
                                     onChange={(e) => setVehicle({ ...vehicle, color: e.target.value })}
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500"
+                                    className="h-12 px-4 rounded-xl"
                                     placeholder="Silver"
                                 />
                             </div>
@@ -328,11 +331,11 @@ const ProfileSettings: React.FC = () => {
 
                         <div>
                             <label className="block text-sm text-gray-600 mb-1">License Plate</label>
-                            <input
+                            <Input
                                 type="text"
                                 value={vehicle.licensePlate}
                                 onChange={(e) => setVehicle({ ...vehicle, licensePlate: e.target.value.toUpperCase() })}
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 uppercase"
+                                className="h-12 px-4 rounded-xl uppercase"
                                 placeholder="ABC 123 XY"
                             />
                         </div>
@@ -345,12 +348,12 @@ const ProfileSettings: React.FC = () => {
                             </div>
                         </div>
 
-                        <button
+                        <Button
                             onClick={handleSaveVehicle}
-                            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors"
+                            className="w-full h-12 rounded-xl font-semibold"
                         >
                             Save Vehicle Info
-                        </button>
+                        </Button>
                     </div>
                 </SettingsSection>
             )}
@@ -410,20 +413,21 @@ const ProfileSettings: React.FC = () => {
                         <span className="text-4xl block mb-3">🔄</span>
                         <p className="font-medium">No recurring rides set up</p>
                         <p className="text-sm text-gray-400 mb-4">Save your daily commute and auto-match with regular drivers</p>
-                        <button className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors">
+                        <Button className="h-12 px-6 rounded-xl font-medium">
                             Add Recurring Ride
-                        </button>
+                        </Button>
                     </div>
                 </SettingsSection>
             )}
 
             {/* Logout Button */}
-            <button
+            <Button
+                variant="destructive"
                 onClick={handleLogout}
-                className="w-full py-4 bg-red-50 text-red-600 rounded-2xl font-semibold hover:bg-red-100 transition-colors"
+                className="w-full h-14 rounded-2xl font-semibold bg-red-50 text-red-600 hover:bg-red-100"
             >
                 Sign Out
-            </button>
+            </Button>
         </div>
     );
 };

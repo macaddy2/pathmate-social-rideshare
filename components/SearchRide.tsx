@@ -15,17 +15,10 @@ import type { Rating, GeoPoint, DriverRide, RideRequest, RouteMatch, RideStatus,
 import { useLocationStore } from '../stores/useLocationStore';
 import { useRideStore } from '../stores/useRideStore';
 import { useChatStore } from '../stores/useChatStore';
-
-// ============================================
-// TYPES
-// ============================================
-
-interface SearchState {
-  pickupAddress: string;
-  pickupLocation: GeoPoint | null;
-  dropoffAddress: string;
-  dropoffLocation: GeoPoint | null;
-}
+import { useSearchStore } from '../stores/useSearchStore';
+import { Button } from './ui/button';
+import { Card, CardContent } from './ui/card';
+import { Badge } from './ui/badge';
 
 // ============================================
 // MOCK DATA (will be replaced with Supabase)
@@ -162,13 +155,7 @@ const SearchRide: React.FC = () => {
   const { userLocation } = useLocationStore();
   const { addRating: onRate } = useRideStore();
   const { openChat: onOpenChat } = useChatStore();
-  // Search state
-  const [search, setSearch] = useState<SearchState>({
-    pickupAddress: '',
-    pickupLocation: null,
-    dropoffAddress: '',
-    dropoffLocation: null,
-  });
+  const { search, setSearch, clearSearch } = useSearchStore();
 
   // UI state
   const [isLoading, setIsLoading] = useState(false);
@@ -189,37 +176,37 @@ const SearchRide: React.FC = () => {
 
   // Handle pickup location selection
   const handlePickupSelect = (place: PlaceResult) => {
-    setSearch((prev) => ({
-      ...prev,
+    setSearch({
+      ...search,
       pickupAddress: place.address,
       pickupLocation: place.location,
-    }));
+    });
   };
 
   // Handle dropoff location selection
   const handleDropoffSelect = (place: PlaceResult) => {
-    setSearch((prev) => ({
-      ...prev,
+    setSearch({
+      ...search,
       dropoffAddress: place.address,
       dropoffLocation: place.location,
-    }));
+    });
   };
 
   // Handle map-based selection
   const handleMapPickupSelect = (point: GeoPoint) => {
-    setSearch((prev) => ({
-      ...prev,
+    setSearch({
+      ...search,
       pickupLocation: point,
       pickupAddress: `${point.lat.toFixed(4)}, ${point.lng.toFixed(4)}`,
-    }));
+    });
   };
 
   const handleMapDropoffSelect = (point: GeoPoint) => {
-    setSearch((prev) => ({
-      ...prev,
+    setSearch({
+      ...search,
       dropoffLocation: point,
       dropoffAddress: `${point.lat.toFixed(4)}, ${point.lng.toFixed(4)}`,
-    }));
+    });
   };
 
   // Search for matching rides
@@ -319,17 +306,20 @@ const SearchRide: React.FC = () => {
       )}
 
       {/* Search Form */}
-      <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100">
+      <Card className="rounded-2xl shadow-md">
+        <CardContent className="p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-gray-900">Find your Route</h2>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setShowMap(!showMap)}
-            className={`p-2 rounded-lg transition-colors ${
+            className={`rounded-lg ${
               showMap ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-600'
             }`}
           >
             <Map className="w-5 h-5" />
-          </button>
+          </Button>
         </div>
 
         {/* Map for location selection */}
@@ -351,7 +341,7 @@ const SearchRide: React.FC = () => {
           {/* Pickup Input */}
           <PlacesAutocomplete
             value={search.pickupAddress}
-            onChange={(value) => setSearch((prev) => ({ ...prev, pickupAddress: value }))}
+            onChange={(value) => setSearch({ ...search, pickupAddress: value })}
             onSelect={handlePickupSelect}
             label="PICKUP"
             placeholder="Where are you?"
@@ -363,7 +353,7 @@ const SearchRide: React.FC = () => {
           {/* Dropoff Input */}
           <PlacesAutocomplete
             value={search.dropoffAddress}
-            onChange={(value) => setSearch((prev) => ({ ...prev, dropoffAddress: value }))}
+            onChange={(value) => setSearch({ ...search, dropoffAddress: value })}
             onSelect={handleDropoffSelect}
             label="DROPOFF"
             placeholder="Where are you going?"
@@ -372,10 +362,11 @@ const SearchRide: React.FC = () => {
             }
           />
 
-          <button
+          <Button
             type="submit"
             disabled={isLoading || !search.pickupAddress || !search.dropoffAddress}
-            className="w-full bg-indigo-600 text-white font-bold p-4 rounded-xl shadow-lg hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            size="lg"
+            className="w-full font-bold p-4 rounded-xl shadow-lg active:scale-95"
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
@@ -385,13 +376,15 @@ const SearchRide: React.FC = () => {
             ) : (
               'Find Matches'
             )}
-          </button>
+          </Button>
         </form>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* AI Insights */}
       {aiAnalysis && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 shadow-sm animate-fadeIn">
+        <Card className="bg-blue-50 border-blue-100 rounded-2xl shadow-sm animate-fadeIn">
+          <CardContent className="p-5">
           <h3 className="text-sm font-bold text-blue-800 mb-2 flex items-center gap-2">
             <Info className="w-4 h-4" />
             PathMate Smart Insights
@@ -414,7 +407,8 @@ const SearchRide: React.FC = () => {
               ))}
             </div>
           )}
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Match Results */}
@@ -433,23 +427,18 @@ const SearchRide: React.FC = () => {
             if (!ride || !driver) return null;
 
             return (
-              <div
+              <Card
                 key={match.driverRideId}
-                className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:border-indigo-300 transition-all"
+                className="rounded-2xl overflow-hidden hover:border-indigo-300 transition-all"
               >
                 {/* Match score indicator */}
                 <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-gray-100">
-                  <div
-                    className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                      match.matchScore >= 70
-                        ? 'bg-green-100 text-green-700'
-                        : match.matchScore >= 50
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}
+                  <Badge
+                    variant={match.matchScore >= 70 ? 'success' : match.matchScore >= 50 ? 'warning' : 'secondary'}
+                    className="text-xs font-bold"
                   >
                     {match.matchScore}% match
-                  </div>
+                  </Badge>
                   <span className="text-xs text-gray-500">
                     {generateMatchExplanation(match)}
                   </span>
@@ -520,23 +509,24 @@ const SearchRide: React.FC = () => {
 
                   {/* Actions */}
                   <div className="mt-4 flex gap-2">
-                    <button
+                    <Button
+                      variant="secondary"
                       onClick={() => onOpenChat(driver.displayName, driver.id)}
-                      className="flex-1 p-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+                      className="flex-1 p-3 h-auto rounded-xl"
                     >
                       <MessageCircle className="w-4 h-4" />
                       <span className="text-sm font-medium">Chat</span>
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => handleJoin(match)}
-                      className="flex-1 p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                      className="flex-1 p-3 h-auto rounded-xl"
                     >
                       <Check className="w-4 h-4" />
                       <span className="text-sm font-medium">Request to Join</span>
-                    </button>
+                    </Button>
                   </div>
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
