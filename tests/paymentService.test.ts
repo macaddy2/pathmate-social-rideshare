@@ -1,5 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { paymentService, formatCurrency, getTransactionStatusColor, getProviderForCurrency } from '../services/paymentService';
+
+// Initialize the service with mock data before all tests
+beforeAll(async () => {
+    await paymentService.init('test-user');
+});
 
 describe('PaymentService', () => {
     it('should return wallet with balance', () => {

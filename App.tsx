@@ -21,6 +21,8 @@ import WalletScreen from './components/WalletScreen';
 import { useRideStore } from './stores/useRideStore';
 import { useLocationStore } from './stores/useLocationStore';
 import { useChatStore } from './stores/useChatStore';
+import { notificationService } from './services/notificationService';
+import { paymentService } from './services/paymentService';
 
 // ============================================
 // MAIN APP CONTENT (Authenticated)
@@ -43,6 +45,14 @@ const AppContent: React.FC = () => {
       setRole(profile.defaultRole as UserRole);
     }
   }, [profile]);
+
+  // Initialize services when user is authenticated
+  useEffect(() => {
+    if (user?.id) {
+      notificationService.init(user.id);
+      paymentService.init(user.id);
+    }
+  }, [user?.id]);
 
   // Show loading spinner while checking auth
   if (loading) {

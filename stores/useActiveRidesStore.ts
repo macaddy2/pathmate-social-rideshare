@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { DriverRide } from '../types';
+import { fetchActiveRides } from '../services/dataService';
 
 interface MatchedRider {
   id: string;
@@ -20,6 +21,7 @@ interface ActiveRidesStore {
   addRide: (ride: ActiveRide) => void;
   removeRide: (rideId: string) => void;
   updateRide: (rideId: string, updater: (ride: ActiveRide) => ActiveRide) => void;
+  loadActiveRides: (userId: string) => Promise<void>;
 }
 
 export const useActiveRidesStore = create<ActiveRidesStore>((set) => ({
@@ -32,4 +34,8 @@ export const useActiveRidesStore = create<ActiveRidesStore>((set) => ({
     set((state) => ({
       activeRides: state.activeRides.map((r) => (r.id === rideId ? updater(r) : r)),
     })),
+  loadActiveRides: async (userId: string) => {
+    const rides = await fetchActiveRides(userId);
+    set({ activeRides: rides });
+  },
 }));

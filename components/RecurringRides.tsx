@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Route, Plus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { fetchRecurringRides } from '../services/dataService';
 import PlacesAutocomplete, { PlaceResult } from './PlacesAutocomplete';
 import type { RecurringRide, GeoPoint } from '../types';
 import { useRecurringRidesStore } from '../stores/useRecurringRidesStore';
@@ -14,28 +15,6 @@ import { Input } from './ui/input';
 import { Card, CardContent } from './ui/card';
 import { Switch } from './ui/switch';
 import { Badge } from './ui/badge';
-
-// ============================================
-// MOCK DATA
-// ============================================
-
-const generateMockRecurringRides = (): RecurringRide[] => [
-    {
-        id: 'recurring-1',
-        userId: 'current-user',
-        origin: 'Lekki Phase 1',
-        originLocation: { lat: 6.4389, lng: 3.4732 },
-        destination: 'Victoria Island',
-        destinationLocation: { lat: 6.4281, lng: 3.4219 },
-        role: 'rider',
-        schedule: {
-            days: ['mon', 'tue', 'wed', 'thu', 'fri'],
-            time: '08:00',
-        },
-        isActive: true,
-        createdAt: new Date(),
-    },
-];
 
 // ============================================
 // DAY SELECTOR COMPONENT
@@ -167,13 +146,13 @@ const RecurringRideCard: React.FC<RideCardProps> = ({ ride, onToggle, onDelete, 
 
 const RecurringRides: React.FC = () => {
     const { user } = useAuth();
-    const { rides, setRides, addRide, updateRide, deleteRide, toggleActive } = useRecurringRidesStore();
+    const { rides, addRide, updateRide, deleteRide, toggleActive, loadRides } = useRecurringRidesStore();
     const [showForm, setShowForm] = useState(false);
 
-    // Initialize with mock data if store is empty
+    // Load recurring rides from data service if store is empty
     useEffect(() => {
         if (rides.length === 0) {
-            setRides(generateMockRecurringRides());
+            loadRides(user?.id || 'current-user');
         }
     }, []);
     const [editingRide, setEditingRide] = useState<RecurringRide | null>(null);

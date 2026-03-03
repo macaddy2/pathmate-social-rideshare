@@ -5,6 +5,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Rating, GeoPoint, DriverRide, RideStatus, UserRole } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { fetchActiveRides } from '../services/dataService';
 import { createGeoRoute, formatDistance, formatDuration } from '../services/geoService';
 import RatingModal from './RatingModal';
 import RouteMap from './RouteMap';
@@ -67,6 +69,7 @@ const DEFAULT_FORM_STATE: RideFormState = {
 // ============================================
 
 const PostRide: React.FC = () => {
+  const { user } = useAuth();
   const { addRating: onRate } = useRideStore();
   const { openChat: onOpenChat } = useChatStore();
   const { activeRides, setActiveRides, addRide, removeRide, updateRide } = useActiveRidesStore();
@@ -87,53 +90,12 @@ const PostRide: React.FC = () => {
     targetId: string;
   } | null>(null);
 
-  // Initialize with mock active rides (only if store is empty)
+  // Initialize active rides from data service (only if store is empty)
   useEffect(() => {
     if (activeRides.length === 0) {
-      const mockRides: ActiveRide[] = [
-        {
-          id: 'user-ride-1',
-          driverId: 'current-user',
-          route: createGeoRoute(
-            'route-user-1',
-            { lat: 6.5244, lng: 3.3792 },
-            'Victoria Island, Lagos',
-            { lat: 6.5965, lng: 3.3421 },
-            'Ikeja GRA, Lagos',
-            []
-          ),
-          departureTime: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
-          flexibleMinutes: 15,
-          seatsAvailable: 2,
-          seatsTotal: 4,
-          pricePerSeat: 1500,
-          currency: 'NGN',
-          maxDetourMeters: 2000,
-          maxDetourMinutes: 10,
-          status: 'active' as RideStatus,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          matchedRiders: [
-            {
-              id: 'rider-1',
-              name: 'Chukwuemeka A.',
-              rating: 4.8,
-              pickupAddress: 'Lekki Phase 1',
-              dropoffAddress: 'Allen Avenue',
-              status: 'accepted',
-            },
-            {
-              id: 'rider-2',
-              name: 'Blessing O.',
-              rating: 4.9,
-              pickupAddress: 'Admiralty Way',
-              dropoffAddress: 'Computer Village',
-              status: 'pending',
-            },
-          ],
-        },
-      ];
-      setActiveRides(mockRides);
+      fetchActiveRides(user?.id || 'current-user').then(rides => {
+        setActiveRides(rides);
+      });
     }
   }, []);
 

@@ -3,47 +3,15 @@
  * Dashboard showing past rides, earnings, spending, and environmental impact
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Route } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { fetchRideHistory } from '../services/dataService';
 import type { RideHistoryEntry, RideStats } from '../types';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-
-// ============================================
-// MOCK DATA (will be replaced with Supabase)
-// ============================================
-
-const generateMockHistory = (): RideHistoryEntry[] => {
-    const origins = ['Lagos Island', 'Ikeja', 'Victoria Island', 'Lekki', 'Yaba'];
-    const destinations = ['Surulere', 'Ikoyi', 'Ajah', 'Maryland', 'Obalende'];
-    const names = ['Adaeze O.', 'Chidi M.', 'Fatima B.', 'Emmanuel K.', 'Grace A.'];
-
-    return Array.from({ length: 12 }, (_, i) => {
-        const isDriver = Math.random() > 0.5;
-        const distanceKm = Math.floor(Math.random() * 25) + 5;
-        const basePrice = distanceKm * 150;
-
-        return {
-            id: `ride-${i + 1}`,
-            date: new Date(Date.now() - (i * 2 + Math.random() * 3) * 24 * 60 * 60 * 1000),
-            origin: origins[Math.floor(Math.random() * origins.length)],
-            destination: destinations[Math.floor(Math.random() * destinations.length)],
-            role: isDriver ? 'driver' : 'rider',
-            status: Math.random() > 0.1 ? 'completed' : 'cancelled',
-            price: basePrice,
-            currency: 'NGN',
-            distanceKm,
-            durationMinutes: Math.floor(distanceKm * 3.5),
-            partnerName: names[Math.floor(Math.random() * names.length)],
-            partnerRating: Math.floor(Math.random() * 2) + 4,
-            ratingGiven: Math.random() > 0.3 ? Math.floor(Math.random() * 2) + 4 : undefined,
-            co2SavedKg: distanceKm * 0.12, // ~120g CO2 per km saved
-        };
-    });
-};
 
 // ============================================
 // STATS CARD COMPONENT
@@ -165,7 +133,15 @@ type TimeFilter = 'week' | 'month' | 'year' | 'all';
 
 const RideHistory: React.FC = () => {
     const { user } = useAuth();
-    const [history] = useState<RideHistoryEntry[]>(generateMockHistory);
+    const [history, setHistory] = useState<RideHistoryEntry[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetchRideHistory(user?.id || 'current-user').then(entries => {
+            setHistory(entries);
+            setLoading(false);
+        });
+    }, [user?.id]);
     const [roleFilter, setRoleFilter] = useState<FilterType>('all');
     const [timeFilter, setTimeFilter] = useState<TimeFilter>('month');
 

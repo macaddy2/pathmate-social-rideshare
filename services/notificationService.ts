@@ -3,68 +3,14 @@
  * Handles in-app notifications and provides hooks for notification management
  */
 
-import { UserNotification, NotificationType } from '../types';
-
-// ============================================
-// MOCK NOTIFICATIONS (will be replaced with Supabase)
-// ============================================
-
-const generateMockNotifications = (): UserNotification[] => {
-    const now = new Date();
-
-    return [
-        {
-            id: 'notif-1',
-            userId: 'current-user',
-            type: 'ride_match' as NotificationType,
-            title: 'New Ride Match!',
-            message: 'Chidi is heading to your destination in 15 minutes',
-            data: { rideId: 'ride-123' },
-            read: false,
-            createdAt: new Date(now.getTime() - 5 * 60 * 1000), // 5 mins ago
-        },
-        {
-            id: 'notif-2',
-            userId: 'current-user',
-            type: 'booking_confirmed' as NotificationType,
-            title: 'Booking Confirmed',
-            message: 'Your ride with Adaeze is confirmed for 9:00 AM',
-            data: { bookingId: 'booking-456' },
-            read: false,
-            createdAt: new Date(now.getTime() - 30 * 60 * 1000), // 30 mins ago
-        },
-        {
-            id: 'notif-3',
-            userId: 'current-user',
-            type: 'driver_arriving' as NotificationType,
-            title: 'Driver Arriving',
-            message: 'Emmanuel is 3 minutes away',
-            data: { bookingId: 'booking-789' },
-            read: true,
-            createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000), // 2 hours ago
-        },
-        {
-            id: 'notif-4',
-            userId: 'current-user',
-            type: 'payment_received' as NotificationType,
-            title: 'Payment Received',
-            message: 'You received ₦2,500 from Grace for your ride',
-            data: { amount: 2500, currency: 'NGN' },
-            read: true,
-            createdAt: new Date(now.getTime() - 24 * 60 * 60 * 1000), // 1 day ago
-        },
-        {
-            id: 'notif-5',
-            userId: 'current-user',
-            type: 'rating_received' as NotificationType,
-            title: 'New Rating',
-            message: 'Fatima gave you a 5-star rating! ⭐',
-            data: { rating: 5 },
-            read: true,
-            createdAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-        },
-    ];
-};
+import type { UserNotification, NotificationType } from '../types';
+import {
+    fetchNotifications,
+    markNotificationRead,
+    markAllNotificationsRead,
+    deleteNotificationById,
+    createNotification as createNotificationInDb,
+} from './dataService';
 
 // ============================================
 // NOTIFICATION SERVICE CLASS
@@ -73,9 +19,18 @@ const generateMockNotifications = (): UserNotification[] => {
 class NotificationService {
     private notifications: UserNotification[] = [];
     private listeners: Set<(notifications: UserNotification[]) => void> = new Set();
+    private initialized = false;
 
     constructor() {
-        this.notifications = generateMockNotifications();
+        // Notifications are loaded lazily via init()
+    }
+
+    // Initialize with data from Supabase (or mock fallback)
+    async init(userId: string): Promise<void> {
+        if (this.initialized) return;
+        this.notifications = await fetchNotifications(userId);
+        this.initialized = true;
+        this.notifyListeners();
     }
 
     // Get all notifications
@@ -96,13 +51,15 @@ class NotificationService {
         if (notification) {
             notification.read = true;
             this.notifyListeners();
+            markNotificationRead(notificationId);
         }
     }
 
     // Mark all as read
-    markAllAsRead(): void {
+    markAllAsRead(userId?: string): void {
         this.notifications.forEach(n => (n.read = true));
         this.notifyListeners();
+        if (userId) markAllNotificationsRead(userId);
     }
 
     // Add a new notification
@@ -114,6 +71,7 @@ class NotificationService {
         };
         this.notifications.unshift(newNotification);
         this.notifyListeners();
+        createNotificationInDb(notification);
 
         // Show browser notification if permitted
         this.showBrowserNotification(newNotification);
@@ -123,6 +81,7 @@ class NotificationService {
     deleteNotification(notificationId: string): void {
         this.notifications = this.notifications.filter(n => n.id !== notificationId);
         this.notifyListeners();
+        deleteNotificationById(notificationId);
     }
 
     // Subscribe to changes
