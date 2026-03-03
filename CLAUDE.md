@@ -45,7 +45,8 @@ pathmate-social-rideshare/
 │   ├── RouteMap.tsx            # Google Maps route visualization
 │   ├── SearchRide.tsx          # Ride search with matching algorithm results
 │   └── WalletScreen.tsx        # Payment wallet, transactions, withdrawals
-├── services/                  # Business logic layer (5 files)
+├── services/                  # Business logic layer (6 files)
+│   ├── dataService.ts          # Centralized Supabase queries with mock fallback
 │   ├── geoService.ts           # Haversine distance, polyline ops, bounding boxes, ETA
 │   ├── matchingService.ts      # 6-stage ride matching algorithm with scoring
 │   ├── paymentService.ts       # Paystack/Stripe provider, wallet, escrow
@@ -55,27 +56,38 @@ pathmate-social-rideshare/
 │   └── AuthContext.tsx         # Auth state, sign-in/up/out, profile CRUD, ProtectedRoute
 ├── hooks/                     # Custom React hooks
 │   └── useRealTimeBooking.ts   # Supabase realtime: booking status + driver location
-├── stores/                    # Zustand global state stores
+├── stores/                    # Zustand global state stores (8 stores)
+│   ├── useActiveRidesStore.ts  # Driver's active posted rides + async loading
 │   ├── useChatStore.ts         # Active chat state (targetName, targetId)
 │   ├── useLocationStore.ts     # Geolocation state + init action
 │   ├── useNotificationStore.ts # Notification state wrapping notificationService
-│   └── useRideStore.ts         # Role + ratings state (mock data)
+│   ├── useRecurringRidesStore.ts # Recurring ride schedules + Supabase persistence
+│   ├── useRideStore.ts         # Role + ratings state + async loading
+│   ├── useSearchStore.ts       # Search form state (pickup/dropoff persistence)
+│   └── useWalletStore.ts       # Wallet balance + async refreshWallet
 ├── lib/                       # Client libraries
 │   ├── supabase.ts             # Supabase client config + Database type definitions
 │   └── utils.ts                # Shadcn cn() utility (clsx + tailwind-merge)
-├── components/ui/             # Shadcn/ui base components
+├── components/ui/             # Shadcn/ui base components (10 components)
 │   ├── avatar.tsx              # Avatar with image + fallback
 │   ├── badge.tsx               # Badge with variants (default, success, warning, etc.)
 │   ├── button.tsx              # Button with variants (default, outline, ghost, etc.)
 │   ├── card.tsx                # Card, CardHeader, CardContent, CardFooter
+│   ├── dialog.tsx              # Modal dialog (Radix Dialog)
 │   ├── input.tsx               # Styled input with focus ring
-│   └── separator.tsx           # Horizontal/vertical separator
+│   ├── select.tsx              # Styled dropdown (Radix Select)
+│   ├── separator.tsx           # Horizontal/vertical separator
+│   ├── switch.tsx              # Toggle switch (Radix Switch)
+│   └── textarea.tsx            # Multi-line text input
 ├── supabase/                  # Database
-│   └── schema.sql              # Full PostgreSQL schema (7 tables, PostGIS, RLS)
-├── tests/                     # Unit tests (Vitest)
-│   ├── setup.ts                # Test setup
-│   ├── notificationService.test.ts
-│   └── paymentService.test.ts
+│   └── schema.sql              # Full PostgreSQL schema (11 tables, PostGIS, RLS)
+├── tests/                     # Unit tests (Vitest) — 121 tests across 5 files
+│   ├── setup.ts                # Test setup (@testing-library/jest-dom)
+│   ├── geoService.test.ts      # 41 tests: distance, polyline, bbox, direction, ETA
+│   ├── matchingService.test.ts # 21 tests: 6-stage pipeline, scoring, batch matching
+│   ├── notificationService.test.ts # 11 tests: CRUD, subscribe, icons, colors
+│   ├── paymentService.test.ts  # 20 tests: wallet, transactions, escrow, currency
+│   └── stores.test.ts          # 28 tests: all 8 Zustand store actions
 ├── docs/                      # Project documentation
 │   ├── prd.md                  # Product Requirements Document
 │   ├── spec.md                 # Technical Specification
@@ -92,7 +104,8 @@ npm install          # Install dependencies
 npm run dev          # Start dev server (port 3000, host 0.0.0.0)
 npm run build        # Production build via Vite
 npm run preview      # Preview production build
-npx vitest           # Run tests
+npm test             # Run tests (vitest run)
+npm run test:watch   # Run tests in watch mode
 npx vitest --coverage # Run tests with coverage
 ```
 
@@ -115,7 +128,7 @@ Create a `.env.local` file (see `.env.example`):
 - **Services**: Class-based singletons (`paymentService`, `notificationService`) or pure function modules (`geoService`, `matchingService`)
 - **State**: Zustand stores for global state, `useState`/`useEffect` for component-local state, `useContext` for auth, `useCallback`/`useRef` for performance
 - **Naming**: PascalCase for components/types, camelCase for functions/variables
-- **DB field mapping**: camelCase in TypeScript, snake_case in PostgreSQL (mapped in `AuthContext.tsx` and `useRealTimeBooking.ts`)
+- **DB field mapping**: camelCase in TypeScript, snake_case in PostgreSQL (mapped in `AuthContext.tsx`, `useRealTimeBooking.ts`, and row mappers in `dataService.ts`)
 - **Section headers**: `// ============================================` blocks to separate logical sections
 - **Imports**: Type-only imports use `import type { ... }`
 - **Path aliases**: `@/*` maps to project root (configured in `tsconfig.json`)
@@ -126,20 +139,27 @@ Create a `.env.local` file (see `.env.example`):
 ### Current
 - **Routing**: React Router v7 — URL-based routes (`/`, `/search`, `/post`, `/planner`, `/history`, `/profile`, `/recurring`, `/wallet`), `NavLink` for bottom nav, `useNavigate` for programmatic navigation
 - **Auth**: React Context (`AuthProvider` → `useAuth()`) wrapping the entire app
-- **State**: Zustand stores for global state (`useRideStore`, `useLocationStore`, `useChatStore`, `useNotificationStore`); `useState`/`useEffect` for component-local state; no prop drilling
+- **State**: Zustand stores for global state (8 stores: `useRideStore`, `useLocationStore`, `useChatStore`, `useNotificationStore`, `useSearchStore`, `useActiveRidesStore`, `useRecurringRidesStore`, `useWalletStore`); `useState`/`useEffect` for component-local state; no prop drilling
 - **Styling**: Tailwind CSS v4 (installed via `@tailwindcss/vite`) + Shadcn/ui base components in `components/ui/`
 - **Icons**: lucide-react across all components (3 brand/marker SVGs remain intentionally)
 - **Realtime**: Supabase channels — `postgres_changes` for booking updates, `broadcast` for driver location
 - **Payments**: Currency-based provider selection (`NGN/GHS/KES/ZAR` → Paystack, others → Stripe)
 
+### Data Access Pattern
+- **Data Service**: `services/dataService.ts` is the centralized data access layer. All Supabase queries live here.
+- **`withFallback<T>()`**: Every data fetch uses this wrapper — checks `isSupabaseConfigured()`, attempts Supabase query, falls back to mock data on failure.
+- **Mock fallback**: When `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` env vars are missing, all queries return mock data from private generator functions in `dataService.ts`. The app is fully functional without Supabase.
+- **Service initialization**: `notificationService.init(userId)` and `paymentService.init(userId)` are called in `App.tsx` when a user authenticates. Services start with empty state and load data lazily.
+- **Store loading**: Zustand stores have async `loadX(userId)` actions that call dataService. Components call these on mount when the store is empty.
+- **Optimistic updates**: Store mutations update local state immediately, then fire-and-forget persist to Supabase via dataService.
+
 ### Planned Evolution
-- **Shadcn/ui expansion**: Add Dialog, Select, Textarea, Switch, Skeleton components; migrate more UI patterns to Shadcn/ui (see ADR-004)
+- **Shadcn/ui expansion**: Add Skeleton component; consider Dialog migration for slide-over panels (see ADR-004)
 - **Figma workflow**: Design-first process using Claude's Figma MCP integration (see ADR-008)
-- **Supabase integration**: Replace mock data with real Supabase queries (deferred)
 
 ## Database Schema
 
-7 tables in PostgreSQL with PostGIS extension:
+11 tables in PostgreSQL with PostGIS extension:
 
 | Table | Purpose | Key Features |
 |-------|---------|-------------|
@@ -148,10 +168,14 @@ Create a `.env.local` file (see `.env.example`):
 | `ride_requests` | Rider search requests | Pickup/dropoff as GEOGRAPHY points |
 | `bookings` | Confirmed ride matches | Status lifecycle (pending→accepted→picked_up→completed) |
 | `ratings` | Post-ride ratings | Multi-criteria (punctuality, communication, safety, vehicle) |
-| `messages` | Chat messages | Booking-scoped, AI-generated flag |
+| `messages` | Chat messages | Booking-scoped, message_type enum |
 | `emergency_contacts` | Safety contacts | Trip sharing for trusted contacts |
+| `notifications` | In-app notifications | Type enum, JSONB data, read boolean, user_id FK |
+| `payments` | Payment transactions | Provider enum (paystack/stripe), status lifecycle, escrow |
+| `recurring_rides` | Scheduled commutes | Schedule days/time, origin/destination lat/lng, role |
+| `wallets` | User wallet balances | user_id PK, balance, currency |
 
-All tables use RLS policies. Schema in `supabase/schema.sql`.
+All tables use RLS policies. Schema in `supabase/schema.sql`. Database types in `lib/supabase.ts`.
 
 ## Matching Algorithm
 
@@ -168,11 +192,12 @@ Scoring uses 5 weighted factors: detour efficiency (30%), time alignment (25%), 
 
 ## Testing
 
-- Framework: Vitest with jsdom environment
-- Setup: `tests/setup.ts`
+- Framework: Vitest with jsdom environment + @testing-library/react
+- Setup: `tests/setup.ts` (imports `@testing-library/jest-dom`)
+- Config: `vitest.config.ts` (globals enabled, jsdom environment)
 - Pattern: `tests/**/*.test.{ts,tsx}`
-- Current coverage: 2 test files (notification + payment services)
-- Run: `npx vitest` or `npx vitest --coverage`
+- Coverage: 5 test files, 121 tests (geoService, matchingService, paymentService, notificationService, stores)
+- Run: `npm test` (single run) or `npm run test:watch` (watch mode) or `npx vitest --coverage`
 
 ## Figma Integration
 

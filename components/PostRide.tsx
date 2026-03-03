@@ -5,13 +5,21 @@
 
 import React, { useState, useEffect } from 'react';
 import { Rating, GeoPoint, DriverRide, RideStatus, UserRole } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { fetchActiveRides } from '../services/dataService';
 import { createGeoRoute, formatDistance, formatDuration } from '../services/geoService';
 import RatingModal from './RatingModal';
 import RouteMap from './RouteMap';
 import PlacesAutocomplete, { PlaceResult } from './PlacesAutocomplete';
 import { useRideStore } from '../stores/useRideStore';
 import { useChatStore } from '../stores/useChatStore';
+import { useActiveRidesStore, type ActiveRide } from '../stores/useActiveRidesStore';
 import { Check, X, Bell, Map, ChevronDown, Star, MessageCircle } from 'lucide-react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Card, CardContent } from './ui/card';
+import { Badge } from './ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 // ============================================
 // TYPES
@@ -29,19 +37,6 @@ interface RideFormState {
   currency: string;
   maxDetourMinutes: number;
   vehicleInfo: string;
-}
-
-interface MatchedRider {
-  id: string;
-  name: string;
-  rating: number;
-  pickupAddress: string;
-  dropoffAddress: string;
-  status: 'pending' | 'accepted' | 'picked_up' | 'dropped_off';
-}
-
-interface ActiveRide extends DriverRide {
-  matchedRiders: MatchedRider[];
 }
 
 // ============================================
@@ -74,8 +69,10 @@ const DEFAULT_FORM_STATE: RideFormState = {
 // ============================================
 
 const PostRide: React.FC = () => {
+  const { user } = useAuth();
   const { addRating: onRate } = useRideStore();
   const { openChat: onOpenChat } = useChatStore();
+  const { activeRides, setActiveRides, addRide, removeRide, updateRide } = useActiveRidesStore();
   // Form state
   const [form, setForm] = useState<RideFormState>(DEFAULT_FORM_STATE);
   const [showMap, setShowMap] = useState(false);
@@ -83,7 +80,6 @@ const PostRide: React.FC = () => {
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [activeRides, setActiveRides] = useState<ActiveRide[]>([]);
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [selectedRide, setSelectedRide] = useState<string | null>(null);
 
@@ -94,52 +90,13 @@ const PostRide: React.FC = () => {
     targetId: string;
   } | null>(null);
 
-  // Initialize with mock active rides
+  // Initialize active rides from data service (only if store is empty)
   useEffect(() => {
-    const mockRides: ActiveRide[] = [
-      {
-        id: 'user-ride-1',
-        driverId: 'current-user',
-        route: createGeoRoute(
-          'route-user-1',
-          { lat: 6.5244, lng: 3.3792 },
-          'Victoria Island, Lagos',
-          { lat: 6.5965, lng: 3.3421 },
-          'Ikeja GRA, Lagos',
-          []
-        ),
-        departureTime: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
-        flexibleMinutes: 15,
-        seatsAvailable: 2,
-        seatsTotal: 4,
-        pricePerSeat: 1500,
-        currency: 'NGN',
-        maxDetourMeters: 2000,
-        maxDetourMinutes: 10,
-        status: 'active' as RideStatus,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        matchedRiders: [
-          {
-            id: 'rider-1',
-            name: 'Chukwuemeka A.',
-            rating: 4.8,
-            pickupAddress: 'Lekki Phase 1',
-            dropoffAddress: 'Allen Avenue',
-            status: 'accepted',
-          },
-          {
-            id: 'rider-2',
-            name: 'Blessing O.',
-            rating: 4.9,
-            pickupAddress: 'Admiralty Way',
-            dropoffAddress: 'Computer Village',
-            status: 'pending',
-          },
-        ],
-      },
-    ];
-    setActiveRides(mockRides);
+    if (activeRides.length === 0) {
+      fetchActiveRides(user?.id || 'current-user').then(rides => {
+        setActiveRides(rides);
+      });
+    }
   }, []);
 
   // Handle form field changes
@@ -226,7 +183,7 @@ const PostRide: React.FC = () => {
       };
 
       // Add to active rides
-      setActiveRides((prev) => [newRide, ...prev]);
+      addRide(newRide);
 
       // Reset form
       setForm(DEFAULT_FORM_STATE);
@@ -253,7 +210,7 @@ const PostRide: React.FC = () => {
       : 'Are you sure you want to cancel this route?';
 
     if (window.confirm(confirmMessage)) {
-      setActiveRides((prev) => prev.filter((r) => r.id !== rideId));
+      removeRide(rideId);
 
       if (hasRiders) {
         showNotification(
@@ -268,26 +225,22 @@ const PostRide: React.FC = () => {
 
   // Handle rider action
   const handleRiderAction = (rideId: string, riderId: string, action: 'accept' | 'reject' | 'picked_up' | 'dropped_off') => {
-    setActiveRides((prev) =>
-      prev.map((ride) => {
-        if (ride.id !== rideId) return ride;
-
-        if (action === 'reject') {
-          return {
-            ...ride,
-            matchedRiders: ride.matchedRiders.filter((r) => r.id !== riderId),
-            seatsAvailable: ride.seatsAvailable + 1,
-          };
-        }
-
+    updateRide(rideId, (ride) => {
+      if (action === 'reject') {
         return {
           ...ride,
-          matchedRiders: ride.matchedRiders.map((r) =>
-            r.id === riderId ? { ...r, status: action === 'accept' ? 'accepted' : action } : r
-          ),
+          matchedRiders: ride.matchedRiders.filter((r) => r.id !== riderId),
+          seatsAvailable: ride.seatsAvailable + 1,
         };
-      })
-    );
+      }
+
+      return {
+        ...ride,
+        matchedRiders: ride.matchedRiders.map((r) =>
+          r.id === riderId ? { ...r, status: action === 'accept' ? 'accepted' : action } : r
+        ),
+      };
+    });
 
     const actionMessages = {
       accept: 'Rider request accepted!',
@@ -350,17 +303,20 @@ const PostRide: React.FC = () => {
       )}
 
       {/* Post New Route Form */}
-      <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100">
+      <Card className="rounded-2xl shadow-md">
+        <CardContent className="p-6">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-xl font-bold text-gray-900">Publish Route</h2>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setShowMap(!showMap)}
-            className={`p-2 rounded-lg transition-colors ${
+            className={`rounded-lg ${
               showMap ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-600'
             }`}
           >
             <Map className="w-5 h-5" />
-          </button>
+          </Button>
         </div>
         <p className="text-xs text-gray-500 mb-6 uppercase tracking-wider font-bold">
           Share your commute, earn while you drive
@@ -417,22 +373,22 @@ const PostRide: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Date</label>
-              <input
+              <Input
                 type="date"
                 value={form.departureDate}
                 onChange={(e) => updateForm('departureDate', e.target.value)}
                 min={new Date().toISOString().split('T')[0]}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="h-12 bg-gray-50 rounded-xl"
                 required
               />
             </div>
             <div>
               <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Time</label>
-              <input
+              <Input
                 type="time"
                 value={form.departureTime}
                 onChange={(e) => updateForm('departureTime', e.target.value)}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="h-12 bg-gray-50 rounded-xl"
                 required
               />
             </div>
@@ -442,40 +398,42 @@ const PostRide: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Available Seats</label>
-              <select
-                value={form.seatsAvailable}
-                onChange={(e) => updateForm('seatsAvailable', parseInt(e.target.value))}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-              >
-                {[1, 2, 3, 4, 5, 6].map((n) => (
-                  <option key={n} value={n}>
-                    {n} seat{n !== 1 ? 's' : ''}
-                  </option>
-                ))}
-              </select>
+              <Select value={form.seatsAvailable.toString()} onValueChange={(value) => updateForm('seatsAvailable', parseInt(value))}>
+                <SelectTrigger className="h-12 bg-gray-50 rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1, 2, 3, 4, 5, 6].map((n) => (
+                    <SelectItem key={n} value={n.toString()}>
+                      {n} seat{n !== 1 ? 's' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Price/Seat</label>
               <div className="relative flex">
-                <select
-                  value={form.currency}
-                  onChange={(e) => updateForm('currency', e.target.value)}
-                  className="bg-gray-50 border border-gray-200 border-r-0 rounded-l-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                  {CURRENCIES.map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {c.symbol}
-                    </option>
-                  ))}
-                </select>
-                <input
+                <Select value={form.currency} onValueChange={(value) => updateForm('currency', value)}>
+                  <SelectTrigger className="w-20 h-12 bg-gray-50 rounded-l-xl rounded-r-none border-r-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>
+                        {c.symbol}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
                   type="number"
                   min="0"
                   step="100"
                   value={form.pricePerSeat || ''}
                   onChange={(e) => updateForm('pricePerSeat', parseFloat(e.target.value) || 0)}
                   placeholder="0"
-                  className="flex-1 bg-gray-50 border border-gray-200 rounded-r-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="flex-1 h-12 bg-gray-50 rounded-l-none rounded-r-xl"
                   required
                 />
               </div>
@@ -507,13 +465,12 @@ const PostRide: React.FC = () => {
           </div>
 
           {/* Submit Button */}
-          <button
+          <Button
             type="submit"
             disabled={isSubmitting}
-            className={`w-full font-bold p-4 rounded-xl shadow-lg transition-all active:scale-95 ${
-              submitted
-                ? 'bg-green-500 text-white'
-                : 'bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50'
+            size="lg"
+            className={`w-full font-bold p-4 rounded-xl shadow-lg active:scale-95 ${
+              submitted ? 'bg-green-500 hover:bg-green-600' : ''
             }`}
           >
             {isSubmitting ? (
@@ -526,17 +483,19 @@ const PostRide: React.FC = () => {
             ) : (
               'Publish Route'
             )}
-          </button>
+          </Button>
         </form>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Active Routes */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+      <Card className="rounded-2xl">
+        <CardContent className="p-6">
         <h3 className="font-bold text-gray-900 mb-4 flex justify-between items-center">
           <span>Your Active Routes</span>
-          <span className="bg-indigo-100 text-indigo-600 text-xs px-2 py-0.5 rounded-full font-bold">
+          <Badge variant="secondary" className="bg-indigo-100 text-indigo-600">
             {activeRides.length}
-          </span>
+          </Badge>
         </h3>
 
         {activeRides.length === 0 ? (
@@ -576,9 +535,9 @@ const PostRide: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2">
                       {ride.matchedRiders.length > 0 && (
-                        <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-bold">
+                        <Badge variant="success" className="text-xs">
                           {ride.matchedRiders.length} rider{ride.matchedRiders.length !== 1 ? 's' : ''}
-                        </span>
+                        </Badge>
                       )}
                       <ChevronDown
                         className={`w-5 h-5 text-gray-400 transition-transform ${
@@ -624,33 +583,41 @@ const PostRide: React.FC = () => {
                               <div className="flex items-center gap-2">
                                 {rider.status === 'pending' ? (
                                   <>
-                                    <button
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
                                       onClick={() => handleRiderAction(ride.id, rider.id, 'accept')}
-                                      className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
+                                      className="bg-green-100 text-green-600 hover:bg-green-200 h-9 w-9"
                                     >
                                       <Check className="w-4 h-4" />
-                                    </button>
-                                    <button
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
                                       onClick={() => handleRiderAction(ride.id, rider.id, 'reject')}
-                                      className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                                      className="bg-red-100 text-red-600 hover:bg-red-200 h-9 w-9"
                                     >
                                       <X className="w-4 h-4" />
-                                    </button>
+                                    </Button>
                                   </>
                                 ) : (
                                   <>
-                                    <button
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
                                       onClick={() => onOpenChat(rider.name, rider.id)}
-                                      className="p-2 bg-indigo-100 text-indigo-600 rounded-lg hover:bg-indigo-200 transition-colors"
+                                      className="bg-indigo-100 text-indigo-600 hover:bg-indigo-200 h-9 w-9"
                                     >
                                       <MessageCircle className="w-4 h-4" />
-                                    </button>
-                                    <button
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
                                       onClick={() => setRatingModal({ isOpen: true, targetName: rider.name, targetId: rider.id })}
-                                      className="p-2 bg-yellow-100 text-yellow-600 rounded-lg hover:bg-yellow-200 transition-colors"
+                                      className="bg-yellow-100 text-yellow-600 hover:bg-yellow-200 h-9 w-9"
                                     >
                                       <Star className="w-4 h-4 fill-current" />
-                                    </button>
+                                    </Button>
                                   </>
                                 )}
                               </div>
@@ -661,22 +628,25 @@ const PostRide: React.FC = () => {
                     )}
 
                     {/* Cancel Button */}
-                    <button
+                    <Button
+                      variant="outline"
                       onClick={() => handleCancelRide(ride.id)}
-                      className="w-full p-3 border border-red-200 text-red-600 rounded-xl hover:bg-red-50 transition-colors text-sm font-medium"
+                      className="w-full p-3 h-auto border-red-200 text-red-600 rounded-xl hover:bg-red-50"
                     >
                       Cancel Route
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>
             ))}
           </div>
         )}
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Driver Tips */}
-      <div className="bg-indigo-50 rounded-2xl p-5 border border-indigo-100">
+      <Card className="bg-indigo-50 rounded-2xl border-indigo-100">
+        <CardContent className="p-5">
         <h3 className="font-bold text-indigo-900 text-sm mb-2">Driver Tips</h3>
         <ul className="text-xs text-indigo-700 space-y-2 opacity-80">
           <li className="flex gap-2">
@@ -689,7 +659,8 @@ const PostRide: React.FC = () => {
             <span>•</span> Confirm cash payments in-app after each ride for both parties.
           </li>
         </ul>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

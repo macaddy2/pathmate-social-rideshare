@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import { Star } from 'lucide-react';
 import { Rating } from '../types';
+import { Button } from './ui/button';
+import { Textarea } from './ui/textarea';
 
 interface RatingModalProps {
   isOpen: boolean;
@@ -54,27 +56,20 @@ const RatingModal: React.FC<RatingModalProps> = ({ isOpen, onClose, targetName, 
           ))}
         </div>
 
-        <textarea
+        <Textarea
           placeholder="Optional comment..."
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm h-24 focus:ring-2 focus:ring-indigo-500 outline-none"
-        ></textarea>
+          className="bg-gray-50 rounded-xl p-3 h-24"
+        />
 
         <div className="flex gap-3 pt-2">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-sm font-bold text-gray-500 hover:bg-gray-50"
-          >
+          <Button variant="outline" onClick={onClose} className="flex-1 py-3 rounded-xl font-bold">
             Skip
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={score === 0}
-            className="flex-1 px-4 py-3 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 disabled:opacity-50"
-          >
+          </Button>
+          <Button disabled={score === 0} onClick={handleSubmit} className="flex-1 py-3 rounded-xl font-bold">
             Submit
-          </button>
+          </Button>
         </div>
       </div>
     </div>

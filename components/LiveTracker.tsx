@@ -8,6 +8,8 @@ import { AlertTriangle, X, User, Phone } from 'lucide-react';
 import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
 import { useRealTimeBooking, useDriverLocationTracker } from '../hooks/useRealTimeBooking';
 import type { GeoPoint, Booking } from '../types';
+import { Button } from './ui/button';
+import { Card, CardContent } from './ui/card';
 
 // ============================================
 // TYPES
@@ -158,12 +160,13 @@ const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, 
                 )}
               </div>
             )}
-            <button
+            <Button
               onClick={onClose}
-              className="w-full bg-indigo-600 text-white font-medium py-3 rounded-xl hover:bg-indigo-700 transition-colors"
+              size="lg"
+              className="w-full py-3 rounded-xl font-medium"
             >
               Close
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -183,12 +186,14 @@ const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, 
       {/* Header */}
       <div className="bg-white px-4 py-3 flex items-center justify-between shadow-md">
         <div className="flex items-center gap-3">
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="rounded-full"
           >
             <X className="w-6 h-6 text-gray-600" />
-          </button>
+          </Button>
           <div>
             <h2 className="font-semibold text-gray-900">Live Tracking</h2>
             <p className="text-xs text-gray-500">
@@ -343,9 +348,9 @@ const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, 
                   <p className="font-medium text-gray-900">Your Driver</p>
                   <p className="text-sm text-gray-500">Toyota Camry • ABC 123</p>
                 </div>
-                <button className="p-3 bg-green-100 rounded-full text-green-600 hover:bg-green-200 transition-colors">
+                <Button variant="ghost" size="icon" className="bg-green-100 text-green-600 hover:bg-green-200 rounded-full h-12 w-12">
                   <Phone className="w-6 h-6" />
-                </button>
+                </Button>
               </div>
             )}
 
@@ -371,24 +376,24 @@ const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, 
 
             {/* Driver tracking toggle (for driver view) */}
             {isDriver && booking.status === 'accepted' && (
-              <button
+              <Button
+                variant={isTracking ? 'outline' : 'default'}
                 onClick={isTracking ? stopTracking : startTracking}
-                className={`w-full py-3 rounded-xl font-medium transition-colors ${
-                  isTracking
-                    ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                size="lg"
+                className={`w-full py-3 rounded-xl font-medium ${
+                  isTracking ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' : ''
                 }`}
               >
                 {isTracking ? 'Stop Sharing Location' : 'Start Sharing Location'}
-              </button>
+              </Button>
             )}
 
             {/* Action buttons based on status */}
             {booking.status === 'picked_up' && !isDriver && (
-              <button className="w-full bg-red-600 text-white font-medium py-3 rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
+              <Button variant="destructive" size="lg" className="w-full py-3 rounded-xl font-medium">
                 <AlertTriangle className="w-5 h-5" />
                 Emergency
-              </button>
+              </Button>
             )}
           </div>
         ) : (

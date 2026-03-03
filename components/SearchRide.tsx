@@ -3,172 +3,29 @@
  * Enhanced ride search with map-based pickup/dropoff selection and real matching
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Map, MapPin, MapPinned, Info, Star, ChevronDown, MessageCircle, Check } from 'lucide-react';
 import { getRouteInsights } from '../services/geminiService';
 import { findMatchingRides, generateMatchExplanation } from '../services/matchingService';
-import { createGeoRoute, formatDistance, formatDuration } from '../services/geoService';
+import { fetchAvailableRides } from '../services/dataService';
 import RatingModal from './RatingModal';
 import RouteMap from './RouteMap';
 import PlacesAutocomplete, { PlaceResult } from './PlacesAutocomplete';
-import type { Rating, GeoPoint, DriverRide, RideRequest, RouteMatch, RideStatus, UserRole } from '../types';
+import type { Rating, GeoPoint, DriverRide, RideRequest, RouteMatch } from '../types';
 import { useLocationStore } from '../stores/useLocationStore';
 import { useRideStore } from '../stores/useRideStore';
 import { useChatStore } from '../stores/useChatStore';
+import { useSearchStore } from '../stores/useSearchStore';
+import { Button } from './ui/button';
+import { Card, CardContent } from './ui/card';
+import { Badge } from './ui/badge';
 
-// ============================================
-// TYPES
-// ============================================
-
-interface SearchState {
-  pickupAddress: string;
-  pickupLocation: GeoPoint | null;
-  dropoffAddress: string;
-  dropoffLocation: GeoPoint | null;
-}
-
-// ============================================
-// MOCK DATA (will be replaced with Supabase)
-// ============================================
-
-const generateMockDriverRides = (): DriverRide[] => {
-  // Sample routes going different directions
-  return [
-    {
-      id: 'ride-1',
-      driverId: 'driver-1',
-      driver: {
-        id: 'driver-1',
-        email: 'sarah@example.com',
-        displayName: 'Sarah Johnson',
-        createdAt: new Date(),
-        emailVerified: true,
-        phoneVerified: true,
-        idVerified: false,
-        defaultRole: 'DRIVER' as UserRole,
-        vehicleMake: 'Toyota',
-        vehicleModel: 'Camry',
-        vehicleYear: 2022,
-        vehicleColor: 'Silver',
-        driverRating: 4.8,
-        driverRatingCount: 127,
-      },
-      route: createGeoRoute(
-        'route-1',
-        { lat: 6.5244, lng: 3.3792 }, // Lagos Island
-        'Lagos Island, Lagos',
-        { lat: 6.5965, lng: 3.3421 }, // Ikeja
-        'Ikeja, Lagos',
-        [{ lat: 6.5500, lng: 3.3600 }, { lat: 6.5750, lng: 3.3500 }]
-      ),
-      departureTime: new Date(Date.now() + 30 * 60 * 1000), // 30 mins from now
-      flexibleMinutes: 15,
-      seatsAvailable: 3,
-      seatsTotal: 4,
-      pricePerSeat: 1500, // NGN
-      currency: 'NGN',
-      maxDetourMeters: 2000,
-      maxDetourMinutes: 10,
-      status: 'active' as RideStatus,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: 'ride-2',
-      driverId: 'driver-2',
-      driver: {
-        id: 'driver-2',
-        email: 'mike@example.com',
-        displayName: 'Michael Okonkwo',
-        createdAt: new Date(),
-        emailVerified: true,
-        phoneVerified: true,
-        idVerified: true,
-        defaultRole: 'DRIVER' as UserRole,
-        vehicleMake: 'Honda',
-        vehicleModel: 'Accord',
-        vehicleYear: 2021,
-        vehicleColor: 'Black',
-        driverRating: 4.9,
-        driverRatingCount: 256,
-      },
-      route: createGeoRoute(
-        'route-2',
-        { lat: 6.4541, lng: 3.3947 }, // Victoria Island
-        'Victoria Island, Lagos',
-        { lat: 6.6018, lng: 3.3515 }, // Airport
-        'Murtala Muhammed Airport, Lagos',
-        [{ lat: 6.5000, lng: 3.3750 }, { lat: 6.5500, lng: 3.3600 }]
-      ),
-      departureTime: new Date(Date.now() + 45 * 60 * 1000), // 45 mins from now
-      flexibleMinutes: 20,
-      seatsAvailable: 2,
-      seatsTotal: 4,
-      pricePerSeat: 2500,
-      currency: 'NGN',
-      maxDetourMeters: 3000,
-      maxDetourMinutes: 15,
-      status: 'active' as RideStatus,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: 'ride-3',
-      driverId: 'driver-3',
-      driver: {
-        id: 'driver-3',
-        email: 'ada@example.com',
-        displayName: 'Adaeze Nwosu',
-        createdAt: new Date(),
-        emailVerified: true,
-        phoneVerified: false,
-        idVerified: false,
-        defaultRole: 'DRIVER' as UserRole,
-        vehicleMake: 'Hyundai',
-        vehicleModel: 'Elantra',
-        vehicleYear: 2020,
-        vehicleColor: 'White',
-        driverRating: 4.6,
-        driverRatingCount: 89,
-      },
-      route: createGeoRoute(
-        'route-3',
-        { lat: 6.4355, lng: 3.4106 }, // Lekki
-        'Lekki Phase 1, Lagos',
-        { lat: 6.5244, lng: 3.3792 }, // Lagos Island
-        'Lagos Island, Lagos',
-        []
-      ),
-      departureTime: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
-      flexibleMinutes: 10,
-      seatsAvailable: 1,
-      seatsTotal: 3,
-      pricePerSeat: 1200,
-      currency: 'NGN',
-      maxDetourMeters: 1500,
-      maxDetourMinutes: 8,
-      status: 'active' as RideStatus,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  ];
-};
-
-// ============================================
-// COMPONENT
-// ============================================
 
 const SearchRide: React.FC = () => {
   const { userLocation } = useLocationStore();
   const { addRating: onRate } = useRideStore();
   const { openChat: onOpenChat } = useChatStore();
-  // Search state
-  const [search, setSearch] = useState<SearchState>({
-    pickupAddress: '',
-    pickupLocation: null,
-    dropoffAddress: '',
-    dropoffLocation: null,
-  });
+  const { search, setSearch, clearSearch } = useSearchStore();
 
   // UI state
   const [isLoading, setIsLoading] = useState(false);
@@ -184,42 +41,49 @@ const SearchRide: React.FC = () => {
     targetId: string;
   } | null>(null);
 
-  // Mock data (will be replaced with Supabase query)
-  const availableRides = useMemo(() => generateMockDriverRides(), []);
+  const [availableRides, setAvailableRides] = useState<DriverRide[]>([]);
+  const [ridesLoading, setRidesLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAvailableRides().then(rides => {
+      setAvailableRides(rides);
+      setRidesLoading(false);
+    });
+  }, []);
 
   // Handle pickup location selection
   const handlePickupSelect = (place: PlaceResult) => {
-    setSearch((prev) => ({
-      ...prev,
+    setSearch({
+      ...search,
       pickupAddress: place.address,
       pickupLocation: place.location,
-    }));
+    });
   };
 
   // Handle dropoff location selection
   const handleDropoffSelect = (place: PlaceResult) => {
-    setSearch((prev) => ({
-      ...prev,
+    setSearch({
+      ...search,
       dropoffAddress: place.address,
       dropoffLocation: place.location,
-    }));
+    });
   };
 
   // Handle map-based selection
   const handleMapPickupSelect = (point: GeoPoint) => {
-    setSearch((prev) => ({
-      ...prev,
+    setSearch({
+      ...search,
       pickupLocation: point,
       pickupAddress: `${point.lat.toFixed(4)}, ${point.lng.toFixed(4)}`,
-    }));
+    });
   };
 
   const handleMapDropoffSelect = (point: GeoPoint) => {
-    setSearch((prev) => ({
-      ...prev,
+    setSearch({
+      ...search,
       dropoffLocation: point,
       dropoffAddress: `${point.lat.toFixed(4)}, ${point.lng.toFixed(4)}`,
-    }));
+    });
   };
 
   // Search for matching rides
@@ -319,17 +183,20 @@ const SearchRide: React.FC = () => {
       )}
 
       {/* Search Form */}
-      <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100">
+      <Card className="rounded-2xl shadow-md">
+        <CardContent className="p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-gray-900">Find your Route</h2>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setShowMap(!showMap)}
-            className={`p-2 rounded-lg transition-colors ${
+            className={`rounded-lg ${
               showMap ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-600'
             }`}
           >
             <Map className="w-5 h-5" />
-          </button>
+          </Button>
         </div>
 
         {/* Map for location selection */}
@@ -351,7 +218,7 @@ const SearchRide: React.FC = () => {
           {/* Pickup Input */}
           <PlacesAutocomplete
             value={search.pickupAddress}
-            onChange={(value) => setSearch((prev) => ({ ...prev, pickupAddress: value }))}
+            onChange={(value) => setSearch({ ...search, pickupAddress: value })}
             onSelect={handlePickupSelect}
             label="PICKUP"
             placeholder="Where are you?"
@@ -363,7 +230,7 @@ const SearchRide: React.FC = () => {
           {/* Dropoff Input */}
           <PlacesAutocomplete
             value={search.dropoffAddress}
-            onChange={(value) => setSearch((prev) => ({ ...prev, dropoffAddress: value }))}
+            onChange={(value) => setSearch({ ...search, dropoffAddress: value })}
             onSelect={handleDropoffSelect}
             label="DROPOFF"
             placeholder="Where are you going?"
@@ -372,10 +239,11 @@ const SearchRide: React.FC = () => {
             }
           />
 
-          <button
+          <Button
             type="submit"
             disabled={isLoading || !search.pickupAddress || !search.dropoffAddress}
-            className="w-full bg-indigo-600 text-white font-bold p-4 rounded-xl shadow-lg hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            size="lg"
+            className="w-full font-bold p-4 rounded-xl shadow-lg active:scale-95"
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
@@ -385,13 +253,15 @@ const SearchRide: React.FC = () => {
             ) : (
               'Find Matches'
             )}
-          </button>
+          </Button>
         </form>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* AI Insights */}
       {aiAnalysis && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 shadow-sm animate-fadeIn">
+        <Card className="bg-blue-50 border-blue-100 rounded-2xl shadow-sm animate-fadeIn">
+          <CardContent className="p-5">
           <h3 className="text-sm font-bold text-blue-800 mb-2 flex items-center gap-2">
             <Info className="w-4 h-4" />
             PathMate Smart Insights
@@ -414,7 +284,8 @@ const SearchRide: React.FC = () => {
               ))}
             </div>
           )}
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Match Results */}
@@ -433,23 +304,18 @@ const SearchRide: React.FC = () => {
             if (!ride || !driver) return null;
 
             return (
-              <div
+              <Card
                 key={match.driverRideId}
-                className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:border-indigo-300 transition-all"
+                className="rounded-2xl overflow-hidden hover:border-indigo-300 transition-all"
               >
                 {/* Match score indicator */}
                 <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-gray-100">
-                  <div
-                    className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                      match.matchScore >= 70
-                        ? 'bg-green-100 text-green-700'
-                        : match.matchScore >= 50
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}
+                  <Badge
+                    variant={match.matchScore >= 70 ? 'success' : match.matchScore >= 50 ? 'warning' : 'secondary'}
+                    className="text-xs font-bold"
                   >
                     {match.matchScore}% match
-                  </div>
+                  </Badge>
                   <span className="text-xs text-gray-500">
                     {generateMatchExplanation(match)}
                   </span>
@@ -520,23 +386,24 @@ const SearchRide: React.FC = () => {
 
                   {/* Actions */}
                   <div className="mt-4 flex gap-2">
-                    <button
+                    <Button
+                      variant="secondary"
                       onClick={() => onOpenChat(driver.displayName, driver.id)}
-                      className="flex-1 p-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+                      className="flex-1 p-3 h-auto rounded-xl"
                     >
                       <MessageCircle className="w-4 h-4" />
                       <span className="text-sm font-medium">Chat</span>
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => handleJoin(match)}
-                      className="flex-1 p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                      className="flex-1 p-3 h-auto rounded-xl"
                     >
                       <Check className="w-4 h-4" />
                       <span className="text-sm font-medium">Request to Join</span>
-                    </button>
+                    </Button>
                   </div>
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>

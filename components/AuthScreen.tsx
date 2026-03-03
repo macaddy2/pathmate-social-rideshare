@@ -6,6 +6,9 @@
 import React, { useState } from 'react';
 import { MapPin, EyeOff, Eye } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Card, CardContent } from './ui/card';
 
 // ============================================
 // TYPES
@@ -63,7 +66,8 @@ const AuthScreen: React.FC = () => {
         </div>
 
         {/* Auth Card */}
-        <div className="bg-white rounded-3xl shadow-2xl p-8">
+        <Card className="rounded-3xl shadow-2xl">
+        <CardContent className="p-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
             {mode === 'login' ? 'Welcome back' : 'Create account'}
           </h2>
@@ -80,12 +84,12 @@ const AuthScreen: React.FC = () => {
             {mode === 'signup' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                <input
+                <Input
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="John Doe"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  className="h-12 rounded-xl"
                   required
                 />
               </div>
@@ -94,12 +98,12 @@ const AuthScreen: React.FC = () => {
             {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input
+              <Input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                className="h-12 rounded-xl"
                 required
               />
             </div>
@@ -108,13 +112,13 @@ const AuthScreen: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
               <div className="relative">
-                <input
+                <Input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   minLength={6}
-                  className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  className="h-12 rounded-xl pr-12"
                   required
                 />
                 <button
@@ -135,10 +139,11 @@ const AuthScreen: React.FC = () => {
             </div>
 
             {/* Submit Button */}
-            <button
+            <Button
               type="submit"
+              size="lg"
               disabled={loading}
-              className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 rounded-xl font-bold"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -150,7 +155,7 @@ const AuthScreen: React.FC = () => {
               ) : (
                 'Create Account'
               )}
-            </button>
+            </Button>
           </form>
 
           {/* Divider */}
@@ -164,10 +169,11 @@ const AuthScreen: React.FC = () => {
           </div>
 
           {/* Google Sign In */}
-          <button
+          <Button
+            variant="outline"
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="w-full py-3 rounded-xl"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -188,7 +194,7 @@ const AuthScreen: React.FC = () => {
               />
             </svg>
             <span className="font-medium text-gray-700">Google</span>
-          </button>
+          </Button>
 
           {/* Toggle Mode */}
           <p className="mt-6 text-center text-sm text-gray-600">
@@ -200,7 +206,8 @@ const AuthScreen: React.FC = () => {
               {mode === 'login' ? 'Sign up' : 'Sign in'}
             </button>
           </p>
-        </div>
+        </CardContent>
+        </Card>
 
         {/* Footer */}
         <p className="mt-6 text-center text-sm text-white/60">
