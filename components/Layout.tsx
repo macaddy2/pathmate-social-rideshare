@@ -4,6 +4,9 @@ import { Home, Search, PlusCircle, Clock, User, Bell, MapPin } from 'lucide-reac
 import NotificationCenter from './NotificationCenter';
 import { notificationService } from '../services/notificationService';
 import { useRideStore } from '../stores/useRideStore';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Avatar, AvatarFallback } from './ui/avatar';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -39,24 +42,30 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <h1 className="text-xl font-bold tracking-tight">PathMate</h1>
         </div>
         <div className="flex items-center gap-3">
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setShowNotifications(true)}
-            className="relative p-2 hover:bg-indigo-500 rounded-full transition-colors"
+            className="relative text-white hover:bg-indigo-500 hover:text-white rounded-full"
           >
             <Bell className="w-6 h-6" />
             {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+              <Badge variant="destructive" className="absolute top-1 right-1 w-4 h-4 p-0 text-[10px] font-bold flex items-center justify-center">
                 {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
+              </Badge>
             )}
-          </button>
+          </Button>
           <span className="text-xs bg-indigo-500 px-2 py-1 rounded-full">{role}</span>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => navigate('/profile')}
-            className="w-8 h-8 rounded-full bg-indigo-400 flex items-center justify-center text-sm font-bold border-2 border-white hover:bg-indigo-300 transition-colors"
+            className="rounded-full p-0 h-8 w-8 hover:bg-indigo-300"
           >
-            JD
-          </button>
+            <Avatar className="h-8 w-8 border-2 border-white">
+              <AvatarFallback className="bg-indigo-400 text-sm font-bold text-white">JD</AvatarFallback>
+            </Avatar>
+          </Button>
         </div>
       </header>
 

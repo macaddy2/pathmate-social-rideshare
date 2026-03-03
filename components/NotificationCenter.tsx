@@ -7,6 +7,8 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { notificationService, getNotificationIcon, getNotificationColor } from '../services/notificationService';
 import type { UserNotification } from '../types';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
 
 // ============================================
 // NOTIFICATION ITEM COMPONENT
@@ -48,15 +50,17 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onRea
                     <p className={`font-medium text-gray-900 ${!notification.read ? 'font-semibold' : ''}`}>
                         {notification.title}
                     </p>
-                    <button
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={(e) => {
                             e.stopPropagation();
                             onDelete(notification.id);
                         }}
-                        className="text-gray-400 hover:text-gray-600 p-1"
+                        className="h-6 w-6 text-gray-400 hover:text-gray-600"
                     >
                         <X className="w-4 h-4" />
-                    </button>
+                    </Button>
                 </div>
                 <p className="text-sm text-gray-600 line-clamp-2">{notification.message}</p>
                 <p className="text-xs text-gray-400 mt-1">{formatTime(notification.createdAt)}</p>
@@ -126,45 +130,46 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                     <div className="flex items-center gap-3">
                         <h2 className="text-lg font-bold text-gray-900">Notifications</h2>
                         {unreadCount > 0 && (
-                            <span className="bg-indigo-600 text-white text-xs px-2 py-0.5 rounded-full">
-                                {unreadCount}
-                            </span>
+                            <Badge>{unreadCount}</Badge>
                         )}
                     </div>
                     <div className="flex items-center gap-2">
                         {unreadCount > 0 && (
-                            <button
+                            <Button
+                                variant="link"
                                 onClick={handleMarkAllRead}
-                                className="text-sm text-indigo-600 font-medium hover:text-indigo-700"
+                                className="text-sm font-medium h-auto p-0"
                             >
                                 Mark all read
-                            </button>
+                            </Button>
                         )}
-                        <button
+                        <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={onClose}
-                            className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                            className="text-gray-400 hover:text-gray-600 rounded-full"
                         >
                             <X className="w-5 h-5" />
-                        </button>
+                        </Button>
                     </div>
                 </div>
 
                 {/* Filter Tabs */}
                 <div className="flex gap-2 p-3 border-b border-gray-50">
-                    <button
+                    <Button
+                        variant={filter === 'all' ? 'secondary' : 'ghost'}
                         onClick={() => setFilter('all')}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'all' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-100'
-                            }`}
+                        className={`px-4 py-2 text-sm font-medium ${filter === 'all' ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-100' : 'text-gray-500'}`}
                     >
                         All
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                        variant={filter === 'unread' ? 'secondary' : 'ghost'}
                         onClick={() => setFilter('unread')}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'unread' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-100'
-                            }`}
+                        className={`px-4 py-2 text-sm font-medium ${filter === 'unread' ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-100' : 'text-gray-500'}`}
                     >
                         Unread ({unreadCount})
-                    </button>
+                    </Button>
                 </div>
 
                 {/* Notification List */}

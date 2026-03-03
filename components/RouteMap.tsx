@@ -5,6 +5,7 @@
 
 import React, { useCallback, useState, useEffect } from 'react';
 import { AlertTriangle, Map as MapIcon } from 'lucide-react';
+import { Button } from './ui/button';
 import {
   GoogleMap,
   useJsApiLoader,
@@ -424,12 +425,13 @@ const RouteMap: React.FC<RouteMapProps> = ({
           {selectionMode === 'pickup'
             ? 'Tap on the map to set pickup point'
             : 'Tap on the map to set dropoff point'}
-          <button
+          <Button
+            variant="link"
             onClick={() => setSelectionMode('none')}
-            className="ml-2 text-indigo-200 hover:text-white"
+            className="ml-2 text-indigo-200 hover:text-white p-0 h-auto"
           >
             Cancel
-          </button>
+          </Button>
         </div>
       )}
 
@@ -437,20 +439,22 @@ const RouteMap: React.FC<RouteMapProps> = ({
       {interactive && selectionMode === 'none' && (onPickupSelect || onDropoffSelect) && (
         <div className="absolute bottom-2 left-2 right-2 flex gap-2">
           {onPickupSelect && (
-            <button
+            <Button
               onClick={() => setSelectionMode('pickup')}
-              className="flex-1 bg-blue-600 text-white text-sm px-3 py-2 rounded-lg shadow-lg hover:bg-blue-700 transition-colors"
+              size="sm"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 shadow-lg"
             >
               Set Pickup
-            </button>
+            </Button>
           )}
           {onDropoffSelect && (
-            <button
+            <Button
               onClick={() => setSelectionMode('dropoff')}
-              className="flex-1 bg-purple-600 text-white text-sm px-3 py-2 rounded-lg shadow-lg hover:bg-purple-700 transition-colors"
+              size="sm"
+              className="flex-1 bg-purple-600 hover:bg-purple-700 shadow-lg"
             >
               Set Dropoff
-            </button>
+            </Button>
           )}
         </div>
       )}
