@@ -3,15 +3,15 @@
  * Enhanced ride search with map-based pickup/dropoff selection and real matching
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Map, MapPin, MapPinned, Info, Star, ChevronDown, MessageCircle, Check } from 'lucide-react';
 import { getRouteInsights } from '../services/geminiService';
 import { findMatchingRides, generateMatchExplanation } from '../services/matchingService';
-import { createGeoRoute, formatDistance, formatDuration } from '../services/geoService';
+import { fetchAvailableRides } from '../services/dataService';
 import RatingModal from './RatingModal';
 import RouteMap from './RouteMap';
 import PlacesAutocomplete, { PlaceResult } from './PlacesAutocomplete';
-import type { Rating, GeoPoint, DriverRide, RideRequest, RouteMatch, RideStatus, UserRole } from '../types';
+import type { Rating, GeoPoint, DriverRide, RideRequest, RouteMatch } from '../types';
 import { useLocationStore } from '../stores/useLocationStore';
 import { useRideStore } from '../stores/useRideStore';
 import { useChatStore } from '../stores/useChatStore';
@@ -20,136 +20,6 @@ import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 
-// ============================================
-// MOCK DATA (will be replaced with Supabase)
-// ============================================
-
-const generateMockDriverRides = (): DriverRide[] => {
-  // Sample routes going different directions
-  return [
-    {
-      id: 'ride-1',
-      driverId: 'driver-1',
-      driver: {
-        id: 'driver-1',
-        email: 'sarah@example.com',
-        displayName: 'Sarah Johnson',
-        createdAt: new Date(),
-        emailVerified: true,
-        phoneVerified: true,
-        idVerified: false,
-        defaultRole: 'DRIVER' as UserRole,
-        vehicleMake: 'Toyota',
-        vehicleModel: 'Camry',
-        vehicleYear: 2022,
-        vehicleColor: 'Silver',
-        driverRating: 4.8,
-        driverRatingCount: 127,
-      },
-      route: createGeoRoute(
-        'route-1',
-        { lat: 6.5244, lng: 3.3792 }, // Lagos Island
-        'Lagos Island, Lagos',
-        { lat: 6.5965, lng: 3.3421 }, // Ikeja
-        'Ikeja, Lagos',
-        [{ lat: 6.5500, lng: 3.3600 }, { lat: 6.5750, lng: 3.3500 }]
-      ),
-      departureTime: new Date(Date.now() + 30 * 60 * 1000), // 30 mins from now
-      flexibleMinutes: 15,
-      seatsAvailable: 3,
-      seatsTotal: 4,
-      pricePerSeat: 1500, // NGN
-      currency: 'NGN',
-      maxDetourMeters: 2000,
-      maxDetourMinutes: 10,
-      status: 'active' as RideStatus,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: 'ride-2',
-      driverId: 'driver-2',
-      driver: {
-        id: 'driver-2',
-        email: 'mike@example.com',
-        displayName: 'Michael Okonkwo',
-        createdAt: new Date(),
-        emailVerified: true,
-        phoneVerified: true,
-        idVerified: true,
-        defaultRole: 'DRIVER' as UserRole,
-        vehicleMake: 'Honda',
-        vehicleModel: 'Accord',
-        vehicleYear: 2021,
-        vehicleColor: 'Black',
-        driverRating: 4.9,
-        driverRatingCount: 256,
-      },
-      route: createGeoRoute(
-        'route-2',
-        { lat: 6.4541, lng: 3.3947 }, // Victoria Island
-        'Victoria Island, Lagos',
-        { lat: 6.6018, lng: 3.3515 }, // Airport
-        'Murtala Muhammed Airport, Lagos',
-        [{ lat: 6.5000, lng: 3.3750 }, { lat: 6.5500, lng: 3.3600 }]
-      ),
-      departureTime: new Date(Date.now() + 45 * 60 * 1000), // 45 mins from now
-      flexibleMinutes: 20,
-      seatsAvailable: 2,
-      seatsTotal: 4,
-      pricePerSeat: 2500,
-      currency: 'NGN',
-      maxDetourMeters: 3000,
-      maxDetourMinutes: 15,
-      status: 'active' as RideStatus,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: 'ride-3',
-      driverId: 'driver-3',
-      driver: {
-        id: 'driver-3',
-        email: 'ada@example.com',
-        displayName: 'Adaeze Nwosu',
-        createdAt: new Date(),
-        emailVerified: true,
-        phoneVerified: false,
-        idVerified: false,
-        defaultRole: 'DRIVER' as UserRole,
-        vehicleMake: 'Hyundai',
-        vehicleModel: 'Elantra',
-        vehicleYear: 2020,
-        vehicleColor: 'White',
-        driverRating: 4.6,
-        driverRatingCount: 89,
-      },
-      route: createGeoRoute(
-        'route-3',
-        { lat: 6.4355, lng: 3.4106 }, // Lekki
-        'Lekki Phase 1, Lagos',
-        { lat: 6.5244, lng: 3.3792 }, // Lagos Island
-        'Lagos Island, Lagos',
-        []
-      ),
-      departureTime: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
-      flexibleMinutes: 10,
-      seatsAvailable: 1,
-      seatsTotal: 3,
-      pricePerSeat: 1200,
-      currency: 'NGN',
-      maxDetourMeters: 1500,
-      maxDetourMinutes: 8,
-      status: 'active' as RideStatus,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  ];
-};
-
-// ============================================
-// COMPONENT
-// ============================================
 
 const SearchRide: React.FC = () => {
   const { userLocation } = useLocationStore();
@@ -171,8 +41,15 @@ const SearchRide: React.FC = () => {
     targetId: string;
   } | null>(null);
 
-  // Mock data (will be replaced with Supabase query)
-  const availableRides = useMemo(() => generateMockDriverRides(), []);
+  const [availableRides, setAvailableRides] = useState<DriverRide[]>([]);
+  const [ridesLoading, setRidesLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAvailableRides().then(rides => {
+      setAvailableRides(rides);
+      setRidesLoading(false);
+    });
+  }, []);
 
   // Handle pickup location selection
   const handlePickupSelect = (place: PlaceResult) => {

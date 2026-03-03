@@ -1,9 +1,11 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { notificationService, getNotificationIcon, getNotificationColor } from '../services/notificationService';
 import type { NotificationType } from '../types';
 
-// Reset notification service state before each test by re-importing
-// Since it's a singleton, we work with the shared instance
+// Initialize the service with mock data before all tests
+beforeAll(async () => {
+    await notificationService.init('test-user');
+});
 
 describe('NotificationService', () => {
     it('should return mock notifications', () => {

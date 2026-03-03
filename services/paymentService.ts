@@ -4,6 +4,13 @@
  */
 
 import type { PaymentTransaction, Wallet, PaymentProvider } from '../types';
+import {
+    fetchWallet,
+    fetchTransactions,
+    createPaymentTransaction,
+    updateTransactionStatus,
+    updateWalletBalance,
+} from './dataService';
 
 // ============================================
 // PAYMENT PROVIDER CONFIGURATION
@@ -26,55 +33,6 @@ const CURRENCY_PROVIDER_MAP: Record<string, PaymentProvider> = {
 // Get provider for currency (defaults to Stripe for international)
 export const getProviderForCurrency = (currency: string): PaymentProvider => {
     return CURRENCY_PROVIDER_MAP[currency] || 'stripe';
-};
-
-// ============================================
-// MOCK DATA
-// ============================================
-
-const generateMockTransactions = (): PaymentTransaction[] => {
-    const now = new Date();
-
-    return [
-        {
-            id: 'txn-1',
-            bookingId: 'booking-123',
-            fromUserId: 'rider-1',
-            toUserId: 'current-user',
-            amount: 2500,
-            currency: 'NGN',
-            provider: 'paystack',
-            providerRef: 'PAY_xxx123',
-            status: 'completed',
-            createdAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000),
-            completedAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000),
-        },
-        {
-            id: 'txn-2',
-            bookingId: 'booking-456',
-            fromUserId: 'current-user',
-            toUserId: 'driver-1',
-            amount: 1800,
-            currency: 'NGN',
-            provider: 'paystack',
-            providerRef: 'PAY_xxx456',
-            status: 'completed',
-            createdAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000),
-            completedAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000),
-        },
-        {
-            id: 'txn-3',
-            bookingId: 'booking-789',
-            fromUserId: 'rider-2',
-            toUserId: 'current-user',
-            amount: 3200,
-            currency: 'NGN',
-            provider: 'paystack',
-            providerRef: 'PAY_xxx789',
-            status: 'escrow',
-            createdAt: new Date(now.getTime() - 30 * 60 * 1000),
-        },
-    ];
 };
 
 // ============================================
@@ -113,13 +71,18 @@ class PaymentService {
     private transactions: PaymentTransaction[] = [];
     private wallet: Wallet = {
         userId: 'current-user',
-        balance: 5700, // Mock balance in NGN
+        balance: 0,
         currency: 'NGN',
         lastUpdated: new Date(),
     };
+    private initialized = false;
 
-    constructor() {
-        this.transactions = generateMockTransactions();
+    // Initialize with data from Supabase (or mock fallback)
+    async init(userId: string): Promise<void> {
+        if (this.initialized) return;
+        this.wallet = await fetchWallet(userId);
+        this.transactions = await fetchTransactions(userId);
+        this.initialized = true;
     }
 
     // Get wallet balance
@@ -280,6 +243,9 @@ class PaymentService {
             this.wallet.lastUpdated = new Date();
         }
 
+        // Persist to Supabase
+        createPaymentTransaction(transaction);
+
         return newTransaction;
     }
 
@@ -294,7 +260,11 @@ class PaymentService {
             if (transaction.toUserId === this.wallet.userId) {
                 this.wallet.balance += transaction.amount;
                 this.wallet.lastUpdated = new Date();
+                updateWalletBalance(this.wallet.userId, this.wallet.balance);
             }
+
+            // Persist status change
+            updateTransactionStatus(transactionId, 'completed', transaction.completedAt);
         }
         return transaction;
     }
@@ -310,7 +280,11 @@ class PaymentService {
             if (transaction.toUserId === this.wallet.userId && wasCompleted) {
                 this.wallet.balance -= transaction.amount;
                 this.wallet.lastUpdated = new Date();
+                updateWalletBalance(this.wallet.userId, this.wallet.balance);
             }
+
+            // Persist status change
+            updateTransactionStatus(transactionId, 'refunded');
 
             return true;
         }
@@ -328,6 +302,7 @@ class PaymentService {
 
         this.wallet.balance -= amount;
         this.wallet.lastUpdated = new Date();
+        updateWalletBalance(this.wallet.userId, this.wallet.balance);
 
         return true;
     }

@@ -1,11 +1,17 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
 import { useRideStore } from '../stores/useRideStore';
 import { useSearchStore } from '../stores/useSearchStore';
 import { useActiveRidesStore } from '../stores/useActiveRidesStore';
 import { useRecurringRidesStore } from '../stores/useRecurringRidesStore';
 import { useWalletStore } from '../stores/useWalletStore';
+import { paymentService } from '../services/paymentService';
 import { UserRole } from '../types';
 import type { GeoPoint, RecurringRide } from '../types';
+
+// Initialize payment service so wallet store's refreshWallet() works
+beforeAll(async () => {
+    await paymentService.init('test-user');
+});
 
 // ============================================
 // useRideStore

@@ -335,6 +335,45 @@ CREATE POLICY "Booking participants can send messages" ON public.messages
 CREATE POLICY "Users manage own emergency contacts" ON public.emergency_contacts
   FOR ALL USING (auth.uid() = user_id);
 
+-- Notifications: Own only
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own notifications" ON public.notifications
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "System can insert notifications" ON public.notifications
+  FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Users can update own notifications" ON public.notifications
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own notifications" ON public.notifications
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Payments: Participants only
+ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Payment participants can read" ON public.payments
+  FOR SELECT USING (auth.uid() IN (from_user_id, to_user_id));
+
+CREATE POLICY "Users can create payments" ON public.payments
+  FOR INSERT WITH CHECK (auth.uid() = from_user_id);
+
+-- Recurring Rides: Own only
+ALTER TABLE public.recurring_rides ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own recurring rides" ON public.recurring_rides
+  FOR ALL USING (auth.uid() = user_id);
+
+-- Wallets: Own only
+ALTER TABLE public.wallets ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read own wallet" ON public.wallets
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own wallet" ON public.wallets
+  FOR UPDATE USING (auth.uid() = user_id);
+
 -- ============================================
 -- FUNCTIONS & TRIGGERS
 -- ============================================
@@ -473,6 +512,99 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================
+-- NOTIFICATIONS TABLE
+-- In-app notifications for users
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS public.notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+
+  type TEXT NOT NULL CHECK (type IN (
+    'ride_match', 'booking_confirmed', 'driver_arriving',
+    'ride_started', 'ride_completed', 'new_message',
+    'payment_received', 'rating_received'
+  )),
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  data JSONB DEFAULT '{}',
+
+  read BOOLEAN DEFAULT FALSE,
+
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON public.notifications (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_unread ON public.notifications (user_id) WHERE read = FALSE;
+
+-- ============================================
+-- PAYMENTS TABLE
+-- Payment transaction records
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS public.payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id UUID REFERENCES public.bookings(id) ON DELETE SET NULL,
+  from_user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  to_user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+
+  amount DECIMAL(10,2) NOT NULL,
+  currency TEXT DEFAULT 'NGN',
+  provider TEXT CHECK (provider IN ('paystack', 'stripe')) NOT NULL,
+  provider_ref TEXT NOT NULL,
+
+  status TEXT CHECK (status IN ('pending', 'escrow', 'completed', 'refunded', 'failed')) DEFAULT 'pending',
+
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  completed_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_payments_from ON public.payments (from_user_id);
+CREATE INDEX IF NOT EXISTS idx_payments_to ON public.payments (to_user_id);
+CREATE INDEX IF NOT EXISTS idx_payments_booking ON public.payments (booking_id);
+
+-- ============================================
+-- RECURRING_RIDES TABLE
+-- Scheduled recurring ride templates
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS public.recurring_rides (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+
+  origin TEXT NOT NULL,
+  origin_lat DOUBLE PRECISION NOT NULL,
+  origin_lng DOUBLE PRECISION NOT NULL,
+  destination TEXT NOT NULL,
+  destination_lat DOUBLE PRECISION NOT NULL,
+  destination_lng DOUBLE PRECISION NOT NULL,
+
+  role TEXT CHECK (role IN ('rider', 'driver')) NOT NULL,
+  schedule_days TEXT[] NOT NULL, -- e.g. {'mon','wed','fri'}
+  schedule_time TEXT NOT NULL,   -- HH:mm format
+
+  is_active BOOLEAN DEFAULT TRUE,
+  price_per_seat DECIMAL(10,2),
+  seats_available INTEGER,
+
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_recurring_user ON public.recurring_rides (user_id);
+
+-- ============================================
+-- WALLETS TABLE
+-- User wallet balances
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS public.wallets (
+  user_id UUID PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
+  balance DECIMAL(10,2) DEFAULT 0,
+  currency TEXT DEFAULT 'NGN',
+  last_updated TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================
 -- REALTIME CONFIGURATION
 -- Enable realtime for bookings and messages
 -- ============================================
@@ -480,6 +612,7 @@ $$ LANGUAGE plpgsql;
 -- Note: Run these in Supabase Dashboard > Database > Replication
 -- ALTER PUBLICATION supabase_realtime ADD TABLE public.bookings;
 -- ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
 
 -- ============================================
 -- SAMPLE DATA (Optional - for testing)
