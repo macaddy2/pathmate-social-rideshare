@@ -1,212 +1,285 @@
-# PathMate — Social Rideshare
+# PathMate — Claude Development Guide
 
-A decentralized peer-to-peer carpooling platform that matches riders with drivers already heading in their direction. Unlike ride-hailing apps that summon drivers, PathMate connects people traveling the same way.
+> This file is the primary reference for AI-assisted development on PathMate.
+> **Always read [`docs/prd.md`](docs/prd.md) and [`docs/spec.md`](docs/spec.md) before making any architectural or product decisions.**
+
+---
+
+## Project Overview
+
+PathMate is a peer-to-peer carpooling platform that matches riders with drivers *already heading in the same direction*. Unlike ride-hailing (Uber/Bolt), drivers aren't dispatched — they share an existing journey.
+
+**Key differentiator:** Direction-aware matching algorithm + Africa-first payments (Paystack for NGN/GHS/KES/ZAR).
+
+---
+
+## Canonical Documents
+
+| Document | Purpose | Path |
+|----------|---------|------|
+| **PRD** | Product vision, user stories, priorities (P0→P3), success metrics | [`docs/prd.md`](docs/prd.md) |
+| **Technical Spec** | Architecture, component hierarchy, services, DB schema, auth flow, real-time | [`docs/spec.md`](docs/spec.md) |
+| **Design System** | Tokens, Shadcn/ui usage, Figma workflow | [`docs/design-system.md`](docs/design-system.md) |
+| **Contributing** | Git conventions, PR process, coding standards | [`docs/contributing.md`](docs/contributing.md) |
+| **ADRs** | Architecture Decision Records | [`docs/adr/`](docs/adr/) |
+| **Schema** | PostgreSQL schema with PostGIS, RLS, triggers | [`supabase/schema.sql`](supabase/schema.sql) |
+
+> **Before implementing any feature:** check the PRD for priority level (P0/P1/P2/P3) and the spec for the technical pattern.
+
+---
 
 ## Tech Stack
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
-| Framework | React | 19.2.3 |
-| Language | TypeScript | 5.8.2 |
-| Build | Vite | 6.2.0 |
+| Frontend | React + TypeScript | 19.x / 5.8 |
+| Build | Vite | 6.x |
 | Styling | Tailwind CSS v4 + Shadcn/ui | 4.x |
 | Routing | React Router | 7.x |
 | State | Zustand | 5.x |
-| Icons | lucide-react | Latest |
-| Backend | Supabase (PostgreSQL + PostGIS + Auth + Realtime) | 2.90.1 |
-| Maps | Google Maps API (`@react-google-maps/api`) | 2.20.8 |
-| AI | Google Gemini (3 Pro, 3 Flash, 2.5 Flash) | 1.37.0 |
-| Payments | Paystack (Africa) + Stripe (International) | Client-side SDK |
+| Backend | Supabase (PostgreSQL + PostGIS + Auth + Realtime) | latest |
+| Maps | Google Maps API + Places + Directions | — |
+| Payments | Paystack (Africa) + Stripe (International) | — |
+| AI | Google Gemini (3 Pro, 3 Flash, 2.5 Flash) | — |
 | Testing | Vitest + jsdom | — |
+
+---
 
 ## Directory Structure
 
 ```
 pathmate-social-rideshare/
-├── App.tsx                    # Root component — React Router routes + Zustand stores
-├── index.tsx                  # React DOM entry point (BrowserRouter wrapper)
-├── index.html                 # HTML shell (minimal — Vite handles all bundling)
-├── index.css                  # Tailwind v4 entry + custom animations + Shadcn/ui CSS vars
-├── types.ts                   # All TypeScript interfaces and enums (~459 lines)
-├── components/                # UI components (16 files)
-│   ├── AIPlanner.tsx           # Gemini-powered trip planning assistant
-│   ├── AuthScreen.tsx          # Login/signup with email + Google OAuth
-│   ├── ChatWindow.tsx          # Real-time messaging between riders/drivers
-│   ├── Home.tsx                # Dashboard with role-based quick actions
-│   ├── Layout.tsx              # App shell: header + bottom nav + notifications
-│   ├── LiveTracker.tsx         # Real-time map with driver location tracking
-│   ├── NotificationCenter.tsx  # Notification drawer with type-based icons
-│   ├── PlacesAutocomplete.tsx  # Google Places autocomplete input
-│   ├── PostRide.tsx            # Multi-step ride posting form (driver flow)
-│   ├── ProfileSettings.tsx     # User profile, vehicle info, verification
-│   ├── RatingModal.tsx         # Multi-criteria rating submission
-│   ├── RecurringRides.tsx      # Scheduled recurring ride management
-│   ├── RideHistory.tsx         # Past rides with stats and CO2 savings
-│   ├── RouteMap.tsx            # Google Maps route visualization
-│   ├── SearchRide.tsx          # Ride search with matching algorithm results
-│   └── WalletScreen.tsx        # Payment wallet, transactions, withdrawals
-├── services/                  # Business logic layer (6 files)
-│   ├── dataService.ts          # Centralized Supabase queries with mock fallback
-│   ├── geoService.ts           # Haversine distance, polyline ops, bounding boxes, ETA
-│   ├── matchingService.ts      # 6-stage ride matching algorithm with scoring
-│   ├── paymentService.ts       # Paystack/Stripe provider, wallet, escrow
-│   ├── notificationService.ts  # In-app + browser notifications, pub/sub
-│   └── geminiService.ts        # Multi-model Gemini AI (Pro for analysis, Flash for speed)
-├── contexts/                  # React Context providers
-│   └── AuthContext.tsx         # Auth state, sign-in/up/out, profile CRUD, ProtectedRoute
-├── hooks/                     # Custom React hooks
-│   └── useRealTimeBooking.ts   # Supabase realtime: booking status + driver location
-├── stores/                    # Zustand global state stores (8 stores)
-│   ├── useActiveRidesStore.ts  # Driver's active posted rides + async loading
-│   ├── useChatStore.ts         # Active chat state (targetName, targetId)
-│   ├── useLocationStore.ts     # Geolocation state + init action
-│   ├── useNotificationStore.ts # Notification state wrapping notificationService
-│   ├── useRecurringRidesStore.ts # Recurring ride schedules + Supabase persistence
-│   ├── useRideStore.ts         # Role + ratings state + async loading
-│   ├── useSearchStore.ts       # Search form state (pickup/dropoff persistence)
-│   └── useWalletStore.ts       # Wallet balance + async refreshWallet
-├── lib/                       # Client libraries
-│   ├── supabase.ts             # Supabase client config + Database type definitions
-│   └── utils.ts                # Shadcn cn() utility (clsx + tailwind-merge)
-├── components/ui/             # Shadcn/ui base components (10 components)
-│   ├── avatar.tsx              # Avatar with image + fallback
-│   ├── badge.tsx               # Badge with variants (default, success, warning, etc.)
-│   ├── button.tsx              # Button with variants (default, outline, ghost, etc.)
-│   ├── card.tsx                # Card, CardHeader, CardContent, CardFooter
-│   ├── dialog.tsx              # Modal dialog (Radix Dialog)
-│   ├── input.tsx               # Styled input with focus ring
-│   ├── select.tsx              # Styled dropdown (Radix Select)
-│   ├── separator.tsx           # Horizontal/vertical separator
-│   ├── switch.tsx              # Toggle switch (Radix Switch)
-│   └── textarea.tsx            # Multi-line text input
-├── supabase/                  # Database
-│   └── schema.sql              # Full PostgreSQL schema (11 tables, PostGIS, RLS)
-├── tests/                     # Unit tests (Vitest) — 121 tests across 5 files
-│   ├── setup.ts                # Test setup (@testing-library/jest-dom)
-│   ├── geoService.test.ts      # 41 tests: distance, polyline, bbox, direction, ETA
-│   ├── matchingService.test.ts # 21 tests: 6-stage pipeline, scoring, batch matching
-│   ├── notificationService.test.ts # 11 tests: CRUD, subscribe, icons, colors
-│   ├── paymentService.test.ts  # 20 tests: wallet, transactions, escrow, currency
-│   └── stores.test.ts          # 28 tests: all 8 Zustand store actions
-├── docs/                      # Project documentation
-│   ├── prd.md                  # Product Requirements Document
-│   ├── spec.md                 # Technical Specification
-│   ├── design-system.md        # Design tokens, Shadcn/ui plan, Figma workflow
-│   ├── contributing.md         # Contributing guide
-│   └── adr/                    # Architecture Decision Records
-└── pathmate---social-rideshare/ # Legacy duplicate (ignore)
+├── App.tsx               # Root component, tab routing, auth gate
+├── index.tsx             # React entry, BrowserRouter wrapper
+├── index.html            # HTML shell
+├── index.css             # Global styles + Tailwind
+├── vite.config.ts        # Vite config (loadEnv uses __dirname)
+│
+├── components/           # UI components (16 total)
+│   ├── ui/               # Shadcn/ui primitives
+│   ├── AuthScreen.tsx    # Login/signup + Google OAuth
+│   ├── Home.tsx          # Role-based dashboard
+│   ├── SearchRide.tsx    # Ride search, matching results, booking
+│   ├── PostRide.tsx      # Multi-step ride posting
+│   ├── AIPlanner.tsx     # Gemini AI chat interface
+│   ├── LiveTracker.tsx   # Real-time map + driver location
+│   ├── ChatWindow.tsx    # Supabase Realtime messaging
+│   ├── WalletScreen.tsx  # Payments + transaction history
+│   ├── NotificationCenter.tsx
+│   ├── RouteMap.tsx      # Google Maps + polylines
+│   ├── PlacesAutocomplete.tsx
+│   ├── RatingModal.tsx
+│   ├── RideHistory.tsx
+│   ├── RecurringRides.tsx
+│   ├── ProfileSettings.tsx
+│   └── Layout.tsx        # App shell (header, bottom nav)
+│
+├── services/             # Business logic (no UI)
+│   ├── dataService.ts    # Centralized Supabase access + mock fallback
+│   ├── matchingService.ts # 6-stage ride matching algorithm
+│   ├── geoService.ts     # Haversine, polyline decode, detour calc
+│   ├── paymentService.ts # Paystack + Stripe dual provider
+│   ├── notificationService.ts
+│   └── geminiService.ts  # Multi-model Gemini integration
+│
+├── stores/               # Zustand global state
+│   ├── useRideStore.ts
+│   ├── useBookingStore.ts
+│   ├── useNotificationStore.ts
+│   ├── useWalletStore.ts
+│   └── useLocationStore.ts
+│
+├── contexts/
+│   └── AuthContext.tsx   # Auth state, signIn/signUp/signOut, profile
+│
+├── hooks/                # Custom React hooks
+│   └── useRealtimeBooking.ts
+│
+├── lib/
+│   └── supabase.ts       # Supabase client + TypeScript types
+│
+├── supabase/
+│   └── schema.sql        # Full DB schema (run in Supabase SQL Editor)
+│
+├── docs/                 # Product + technical documentation
+│   ├── prd.md            # ← PRIMARY PRODUCT REFERENCE
+│   ├── spec.md           # ← PRIMARY TECHNICAL REFERENCE
+│   ├── design-system.md
+│   ├── contributing.md
+│   └── adr/
+│
+└── tests/                # Vitest unit tests
 ```
+
+---
 
 ## Key Commands
 
 ```bash
-npm install          # Install dependencies
-npm run dev          # Start dev server (port 3000, host 0.0.0.0)
-npm run build        # Production build via Vite
-npm run preview      # Preview production build
-npm test             # Run tests (vitest run)
-npm run test:watch   # Run tests in watch mode
-npx vitest --coverage # Run tests with coverage
+# Development
+npm run dev          # Start dev server at http://localhost:3000
+
+# Testing
+npm test             # Run all tests (Vitest)
+npm run test:watch   # Watch mode
+npm run test:coverage
+
+# Build
+npm run build        # Production build (Vite)
+npm run preview      # Preview production build locally
 ```
+
+---
 
 ## Environment Variables
 
-Create a `.env.local` file (see `.env.example`):
+Create `.env.local` in the project root (never commit this file):
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `VITE_SUPABASE_URL` | Yes | Supabase project URL |
-| `VITE_SUPABASE_ANON_KEY` | Yes | Supabase anonymous/public key |
-| `VITE_GOOGLE_MAPS_API_KEY` | Yes | Google Maps JavaScript API key |
-| `VITE_PAYSTACK_PUBLIC_KEY` | For payments | Paystack public key (Africa) |
-| `VITE_STRIPE_PUBLIC_KEY` | For payments | Stripe publishable key (International) |
-| `GEMINI_API_KEY` | For AI | Google Gemini API key (exposed as `process.env.API_KEY` via Vite define) |
+```env
+# Required — Supabase
+VITE_SUPABASE_URL=https://phqcltllpmoflhqdqzef.supabase.co
+VITE_SUPABASE_ANON_KEY=<your-anon-key>
 
-## Coding Conventions
+# Required for Maps features
+VITE_GOOGLE_MAPS_API_KEY=<your-key>
 
-- **Components**: Functional components with `React.FC<Props>`, one component per file
-- **Services**: Class-based singletons (`paymentService`, `notificationService`) or pure function modules (`geoService`, `matchingService`)
-- **State**: Zustand stores for global state, `useState`/`useEffect` for component-local state, `useContext` for auth, `useCallback`/`useRef` for performance
-- **Naming**: PascalCase for components/types, camelCase for functions/variables
-- **DB field mapping**: camelCase in TypeScript, snake_case in PostgreSQL (mapped in `AuthContext.tsx`, `useRealTimeBooking.ts`, and row mappers in `dataService.ts`)
-- **Section headers**: `// ============================================` blocks to separate logical sections
-- **Imports**: Type-only imports use `import type { ... }`
-- **Path aliases**: `@/*` maps to project root (configured in `tsconfig.json`)
-- **Mobile-first**: All UI targets 480px max-width with `max-w-md mx-auto`
+# Required for payments
+VITE_PAYSTACK_PUBLIC_KEY=pk_live_...
+VITE_STRIPE_PUBLIC_KEY=pk_live_...
+
+# Required for AI Planner
+GEMINI_API_KEY=<your-key>
+```
+
+> **Note:** All env vars prefixed with `VITE_` are exposed to the client bundle. Never put secret keys in VITE_ vars.
+> `vite.config.ts` uses `loadEnv(mode, __dirname, '')` — `.env.local` must be in the **project root**, not a parent directory.
+
+---
 
 ## Architecture Patterns
 
-### Current
-- **Routing**: React Router v7 — URL-based routes (`/`, `/search`, `/post`, `/planner`, `/history`, `/profile`, `/recurring`, `/wallet`), `NavLink` for bottom nav, `useNavigate` for programmatic navigation
-- **Auth**: React Context (`AuthProvider` → `useAuth()`) wrapping the entire app
-- **State**: Zustand stores for global state (8 stores: `useRideStore`, `useLocationStore`, `useChatStore`, `useNotificationStore`, `useSearchStore`, `useActiveRidesStore`, `useRecurringRidesStore`, `useWalletStore`); `useState`/`useEffect` for component-local state; no prop drilling
-- **Styling**: Tailwind CSS v4 (installed via `@tailwindcss/vite`) + Shadcn/ui base components in `components/ui/`
-- **Icons**: lucide-react across all components (3 brand/marker SVGs remain intentionally)
-- **Realtime**: Supabase channels — `postgres_changes` for booking updates, `broadcast` for driver location
-- **Payments**: Currency-based provider selection (`NGN/GHS/KES/ZAR` → Paystack, others → Stripe)
+### 1. Data Access — `dataService.ts`
 
-### Data Access Pattern
-- **Data Service**: `services/dataService.ts` is the centralized data access layer. All Supabase queries live here.
-- **`withFallback<T>()`**: Every data fetch uses this wrapper — checks `isSupabaseConfigured()`, attempts Supabase query, falls back to mock data on failure.
-- **Mock fallback**: When `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` env vars are missing, all queries return mock data from private generator functions in `dataService.ts`. The app is fully functional without Supabase.
-- **Service initialization**: `notificationService.init(userId)` and `paymentService.init(userId)` are called in `App.tsx` when a user authenticates. Services start with empty state and load data lazily.
-- **Store loading**: Zustand stores have async `loadX(userId)` actions that call dataService. Components call these on mount when the store is empty.
-- **Optimistic updates**: Store mutations update local state immediately, then fire-and-forget persist to Supabase via dataService.
+All Supabase queries go through `dataService.ts`. It implements a **`withFallback()` pattern** — if Supabase isn't configured or a query fails, it returns mock data so the app runs in demo mode.
 
-### Planned Evolution
-- **Shadcn/ui expansion**: Add Skeleton component; consider Dialog migration for slide-over panels (see ADR-004)
-- **Figma workflow**: Design-first process using Claude's Figma MCP integration (see ADR-008)
+```typescript
+// ✅ Correct — use dataService
+const rides = await dataService.getRides();
 
-## Database Schema
+// ❌ Wrong — don't query Supabase directly in components
+const { data } = await supabase.from('rides').select('*');
+```
 
-11 tables in PostgreSQL with PostGIS extension:
+### 2. Auth — `AuthContext`
 
-| Table | Purpose | Key Features |
-|-------|---------|-------------|
-| `users` | User profiles | Vehicle info, ratings, verification status, RLS |
-| `rides` | Driver-posted rides | PostGIS GEOGRAPHY columns, route polyline, detour limits |
-| `ride_requests` | Rider search requests | Pickup/dropoff as GEOGRAPHY points |
-| `bookings` | Confirmed ride matches | Status lifecycle (pending→accepted→picked_up→completed) |
-| `ratings` | Post-ride ratings | Multi-criteria (punctuality, communication, safety, vehicle) |
-| `messages` | Chat messages | Booking-scoped, message_type enum |
-| `emergency_contacts` | Safety contacts | Trip sharing for trusted contacts |
-| `notifications` | In-app notifications | Type enum, JSONB data, read boolean, user_id FK |
-| `payments` | Payment transactions | Provider enum (paystack/stripe), status lifecycle, escrow |
-| `recurring_rides` | Scheduled commutes | Schedule days/time, origin/destination lat/lng, role |
-| `wallets` | User wallet balances | user_id PK, balance, currency |
+Auth state flows via React context. All components use `useAuth()`:
 
-All tables use RLS policies. Schema in `supabase/schema.sql`. Database types in `lib/supabase.ts`.
+```typescript
+const { user, profile, loading, signIn, signOut } = useAuth();
+```
 
-## Matching Algorithm
+### 3. Real-Time — Supabase Channels
 
-The ride matching service (`services/matchingService.ts`) uses a 6-stage filtering pipeline:
+Two channel patterns (see spec.md §6):
+- `postgres_changes` for booking status updates
+- `broadcast` for driver location streaming
 
-1. **Time window** — departure within `timeWindowMinutes + flexibleMinutes`
-2. **Seat availability** — `seatsAvailable > 0`
-3. **Bounding box** — pickup/dropoff within expanded route bbox
-4. **Point-to-route distance** — pickup/dropoff within `maxDetourMeters` of route polyline
-5. **Direction validation** — pickup must come BEFORE dropoff along route (same direction)
-6. **Detour tolerance** — estimated detour within driver's limits
+Channels are managed in `useRealtimeBooking.ts`.
 
-Scoring uses 5 weighted factors: detour efficiency (30%), time alignment (25%), route overlap (20%), driver rating (15%), price competitiveness (10%).
+### 4. State — Zustand Stores
 
-## Testing
+Global state lives in `stores/`. Auth state stays in Context. Use stores for:
+- Ride data (`useRideStore`)
+- Booking state (`useBookingStore`)
+- Notifications (`useNotificationStore`)
+- Wallet (`useWalletStore`)
+- Location (`useLocationStore`)
 
-- Framework: Vitest with jsdom environment + @testing-library/react
-- Setup: `tests/setup.ts` (imports `@testing-library/jest-dom`)
-- Config: `vitest.config.ts` (globals enabled, jsdom environment)
-- Pattern: `tests/**/*.test.{ts,tsx}`
-- Coverage: 5 test files, 121 tests (geoService, matchingService, paymentService, notificationService, stores)
-- Run: `npm test` (single run) or `npm run test:watch` (watch mode) or `npx vitest --coverage`
+### 5. Routing — React Router v7
 
-## Figma Integration
+URL-based routing. Tabs use `<NavLink>` + `navigate()`. Protected routes via `<ProtectedRoute>`.
 
-This project uses a **design-first workflow** with Claude's Figma MCP:
+| Path | Component |
+|------|-----------|
+| `/` | Home |
+| `/search` | SearchRide |
+| `/post` | PostRide |
+| `/planner` | AIPlanner |
+| `/history` | RideHistory |
+| `/profile` | ProfileSettings |
+| `/recurring` | RecurringRides |
+| `/wallet` | WalletScreen |
 
-1. Designers create screens in Figma
-2. Developers use `get_design_context(fileKey, nodeId)` to pull specs and screenshots
-3. Claude generates code using project components (Shadcn/ui base components in `components/ui/`)
-4. `add_code_connect_map` creates persistent Figma ↔ code component mappings
-5. Design tokens sync to `index.css` CSS variables (Tailwind v4 `@theme` block)
+---
 
-See `docs/design-system.md` for full workflow and `docs/adr/008-figma-design-first-workflow.md` for the decision record.
+## Feature Priority Guide
+
+Per [`docs/prd.md`](docs/prd.md) §5:
+
+| Priority | Meaning | Focus |
+|----------|---------|-------|
+| **P0** | Must ship — core product | Auth, ride post/search/book, payments, wallet |
+| **P1** | Ship soon after | Live tracking, chat, notifications, ratings, profile |
+| **P2** | Next iteration | AI planner, recurring rides, escrow, Shadcn/ui, React Router v7, Zustand |
+| **P3** | Roadmap | Social features, carbon tracking, native mobile, multi-language |
+
+**Always implement P0 → P1 → P2 in order. Do not start P2 features before P0/P1 are solid.**
+
+---
+
+## Database Schema (Summary)
+
+11 tables. See [`supabase/schema.sql`](supabase/schema.sql) for full SQL.
+
+| Table | Purpose |
+|-------|---------|
+| `users` | Extended profile (extends `auth.users`) |
+| `rides` | Driver-posted rides with PostGIS geometry |
+| `ride_requests` | Rider search requests |
+| `bookings` | Confirmed matches between rider + driver |
+| `messages` | In-ride chat (Realtime enabled) |
+| `ratings` | Post-ride ratings with sub-criteria |
+| `payments` | Transaction records (Paystack/Stripe) |
+| `wallets` | Driver earnings balance |
+| `notifications` | In-app notifications (Realtime enabled) |
+| `emergency_contacts` | Safety contacts |
+| `recurring_rides` | Scheduled commute templates |
+
+**All tables have Row Level Security (RLS) enabled.**
+
+---
+
+## Matching Algorithm (Summary)
+
+6-stage pipeline in `matchingService.ts`:
+1. **Time window** — departure within tolerance
+2. **Seat availability** — at least 1 seat free
+3. **Bounding box** — cheap pre-filter
+4. **Point-to-route distance** — pickup/dropoff within detour radius
+5. **Direction validation** — pickup comes before dropoff along driver's route
+6. **Detour tolerance** — extra time/distance within driver's stated limit
+
+**Score weights:** detour efficiency (30%) + time alignment (25%) + route overlap (20%) + driver rating (15%) + price (10%).
+
+---
+
+## Coding Conventions
+
+- **TypeScript strict mode** — no `any`, no `@ts-ignore` without comment
+- **Component files** — PascalCase (e.g., `SearchRide.tsx`)
+- **Service files** — camelCase (e.g., `matchingService.ts`)
+- **No direct Supabase calls in components** — use `dataService.ts`
+- **Error handling** — try/catch with meaningful error messages; use fallback data
+- **Mobile-first** — design for 480px viewport first
+- **Touch targets** — minimum 44×44px per prd.md §7
+- **Imports** — use `@/` alias for project-root-relative imports
+
+---
+
+## Supabase Project
+
+- **Project URL:** `https://phqcltllpmoflhqdqzef.supabase.co`
+- **Dashboard:** https://supabase.com/dashboard/project/phqcltllpmoflhqdqzef
+- **Schema deployed:** Yes (via SQL Editor, March 2026)
+- **Realtime enabled on:** `bookings`, `messages`, `notifications`
+- **Auth providers:** Email/password + Google OAuth

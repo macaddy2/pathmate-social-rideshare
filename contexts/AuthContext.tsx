@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import type { User, Session, AuthError } from '@supabase/supabase-js';
 import type { UserProfile, UserRole } from '../types';
 
@@ -67,21 +67,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setState((prev) => ({ ...prev, error: null }));
   }, []);
 
-  // Fetch user profile from database
+  // Fetch user profile from database (with timeout so it can't hang forever)
   const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
     try {
-      const { data, error } = await supabase
+      const fetchPromise = supabase
         .from('users')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (error) {
-        console.error('Error fetching profile:', error);
+      const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
+        setTimeout(() => resolve({ data: null, error: new Error('Profile fetch timeout') }), 5000)
+      );
+
+      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
+
+      if (error || !data) {
+        // Not an error if profile just doesn't exist yet (new signup)
         return null;
       }
 
-      // Map database fields to UserProfile
       return {
         id: data.id,
         email: data.email,
@@ -157,41 +162,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let mounted = true;
 
     const initAuth = async () => {
-      try {
-        // Get current session
-        const { data: { session } } = await supabase.auth.getSession();
+      // If env vars aren't set, skip Supabase and let user see the login form.
+      if (!isSupabaseConfigured()) {
+        console.warn('Supabase not configured — skipping auth init.');
+        if (mounted) setState({ user: null, profile: null, session: null, loading: false, error: null });
+        return;
+      }
 
-        if (mounted) {
-          if (session?.user) {
-            const profile = await fetchProfile(session.user.id);
-            setState({
-              user: session.user,
-              profile,
-              session,
-              loading: false,
-              error: null,
-            });
-          } else {
-            setState({
-              user: null,
-              profile: null,
-              session: null,
-              loading: false,
-              error: null,
-            });
+      try {
+        // Race getSession() against a 10-second timeout so we can
+        // never be stuck in a loading spinner indefinitely.
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<{ data: { session: null }, error: null }>((resolve) =>
+          setTimeout(() => resolve({ data: { session: null }, error: null }), 10000)
+        );
+
+        const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise]);
+
+        if (!mounted) return;
+
+        if (error) {
+          console.error('Auth session error:', error);
+          setState({ user: null, profile: null, session: null, loading: false, error: 'Failed to connect to authentication service' });
+          return;
+        }
+
+        if (session?.user) {
+          const profile = await fetchProfile(session.user.id);
+          if (mounted) {
+            setState({ user: session.user, profile, session, loading: false, error: null });
           }
+        } else {
+          setState({ user: null, profile: null, session: null, loading: false, error: null });
         }
-      } catch (error) {
-        console.error('Auth initialization error:', error);
-        if (mounted) {
-          setState({
-            user: null,
-            profile: null,
-            session: null,
-            loading: false,
-            error: 'Failed to initialize authentication',
-          });
-        }
+      } catch (err: unknown) {
+        if (!mounted) return;
+        // AbortError fires in React StrictMode dev — harmless, second mount will succeed.
+        if (err instanceof Error && err.name === 'AbortError') return;
+        console.error('Auth initialization error:', err);
+        setState({ user: null, profile: null, session: null, loading: false, error: 'Failed to initialize authentication' });
       }
     };
 
@@ -238,19 +247,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [fetchProfile]);
 
   // Sign in with email/password
+  // Note: loading state is managed by onAuthStateChange — we don't set loading=true
+  // here to avoid a race where the auth event resolves before we clear loading.
   const signIn = useCallback(async (email: string, password: string) => {
-    setState((prev) => ({ ...prev, loading: true, error: null }));
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setError(error.message);
-      setState((prev) => ({ ...prev, loading: false }));
     }
-
     return { error };
   }, [setError]);
 
