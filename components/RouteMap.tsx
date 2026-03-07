@@ -50,7 +50,7 @@ const mapContainerStyle = {
   height: '100%',
 };
 
-const defaultMapOptions: google.maps.MapOptions = {
+const defaultMapOptions = {
   disableDefaultUI: false,
   zoomControl: true,
   streetViewControl: false,
@@ -69,61 +69,58 @@ const defaultMapOptions: google.maps.MapOptions = {
 // MARKER ICONS
 // ============================================
 
-const MARKER_ICONS = {
+// MARKER_ICONS must be a function (not a constant) because google.maps is not
+// available at module evaluation time — it only exists after useJsApiLoader fires.
+const getMarkerIcons = () => ({
   origin: {
     path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
-    fillColor: '#10B981', // Green
+    fillColor: '#10B981',
     fillOpacity: 1,
     strokeColor: '#ffffff',
     strokeWeight: 2,
     scale: 1.5,
-    anchor: { x: 12, y: 24 } as google.maps.Point,
   },
   destination: {
     path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
-    fillColor: '#EF4444', // Red
+    fillColor: '#EF4444',
     fillOpacity: 1,
     strokeColor: '#ffffff',
     strokeWeight: 2,
     scale: 1.5,
-    anchor: { x: 12, y: 24 } as google.maps.Point,
   },
   pickup: {
     path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
-    fillColor: '#3B82F6', // Blue
+    fillColor: '#3B82F6',
     fillOpacity: 1,
     strokeColor: '#ffffff',
     strokeWeight: 2,
     scale: 1.5,
-    anchor: { x: 12, y: 24 } as google.maps.Point,
   },
   dropoff: {
     path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
-    fillColor: '#8B5CF6', // Purple
+    fillColor: '#8B5CF6',
     fillOpacity: 1,
     strokeColor: '#ffffff',
     strokeWeight: 2,
     scale: 1.5,
-    anchor: { x: 12, y: 24 } as google.maps.Point,
   },
   driver: {
     path: 'M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z',
-    fillColor: '#F59E0B', // Amber
+    fillColor: '#F59E0B',
     fillOpacity: 1,
     strokeColor: '#ffffff',
     strokeWeight: 1,
     scale: 1.5,
-    anchor: { x: 12, y: 12 } as google.maps.Point,
   },
   user: {
-    path: google.maps?.SymbolPath?.CIRCLE || 0,
-    fillColor: '#6366F1', // Indigo
+    path: 0, // 0 = google.maps.SymbolPath.CIRCLE (numeric value, no runtime dependency)
+    fillColor: '#6366F1',
     fillOpacity: 1,
     strokeColor: '#ffffff',
     strokeWeight: 2,
     scale: 8,
   },
-};
+});
 
 // ============================================
 // COMPONENT
@@ -317,7 +314,7 @@ const RouteMap: React.FC<RouteMapProps> = ({
         {route && (
           <Marker
             position={route.origin}
-            icon={MARKER_ICONS.origin}
+            icon={getMarkerIcons().origin}
             onClick={() => setSelectedMarker('origin')}
           >
             {selectedMarker === 'origin' && (
@@ -335,7 +332,7 @@ const RouteMap: React.FC<RouteMapProps> = ({
         {route && (
           <Marker
             position={route.destination}
-            icon={MARKER_ICONS.destination}
+            icon={getMarkerIcons().destination}
             onClick={() => setSelectedMarker('destination')}
           >
             {selectedMarker === 'destination' && (
@@ -353,7 +350,7 @@ const RouteMap: React.FC<RouteMapProps> = ({
         {pickupPoint && (
           <Marker
             position={pickupPoint}
-            icon={MARKER_ICONS.pickup}
+            icon={getMarkerIcons().pickup}
             onClick={() => setSelectedMarker('pickup')}
           >
             {selectedMarker === 'pickup' && (
@@ -370,7 +367,7 @@ const RouteMap: React.FC<RouteMapProps> = ({
         {dropoffPoint && (
           <Marker
             position={dropoffPoint}
-            icon={MARKER_ICONS.dropoff}
+            icon={getMarkerIcons().dropoff}
             onClick={() => setSelectedMarker('dropoff')}
           >
             {selectedMarker === 'dropoff' && (
@@ -387,7 +384,7 @@ const RouteMap: React.FC<RouteMapProps> = ({
         {driverLocation && (
           <Marker
             position={driverLocation.point}
-            icon={MARKER_ICONS.driver}
+            icon={getMarkerIcons().driver}
             onClick={() => setSelectedMarker('driver')}
           >
             {selectedMarker === 'driver' && (
@@ -405,7 +402,7 @@ const RouteMap: React.FC<RouteMapProps> = ({
         {userLocation && (
           <Marker
             position={userLocation}
-            icon={MARKER_ICONS.user}
+            icon={getMarkerIcons().user}
             onClick={() => setSelectedMarker('user')}
           >
             {selectedMarker === 'user' && (
