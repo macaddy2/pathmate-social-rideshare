@@ -3,11 +3,14 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "vite preview --port $PORT --host",
+    "start": "serve dist -s -l $PORT",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -29,7 +32,8 @@
     "react-router": "^7.13.1",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.1",
-    "zustand": "^5.0.11"
+    "zustand": "^5.0.11",
+    "serve": "^14.2.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
