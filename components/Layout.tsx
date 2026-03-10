@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router';
 import { Home, Search, PlusCircle, Clock, User, Bell, MapPin } from 'lucide-react';
 import NotificationCenter from './NotificationCenter';
-import { notificationService } from '../services/notificationService';
 import { useRideStore } from '../stores/useRideStore';
+import { useNotificationStore } from '../stores/useNotificationStore';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
@@ -16,15 +16,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { role } = useRideStore();
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    setUnreadCount(notificationService.getUnreadCount());
-    const unsubscribe = notificationService.subscribe(() => {
-      setUnreadCount(notificationService.getUnreadCount());
-    });
-    return unsubscribe;
-  }, []);
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     `flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-colors ${

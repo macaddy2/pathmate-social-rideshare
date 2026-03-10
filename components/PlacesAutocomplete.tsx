@@ -7,6 +7,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { MapPin } from 'lucide-react';
 import { useJsApiLoader } from '@react-google-maps/api';
 import type { GeoPoint } from '../types';
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '../lib/constants';
 
 // ============================================
 // TYPES
@@ -34,14 +35,6 @@ export interface PlaceResult {
 }
 
 // ============================================
-// CONSTANTS
-// ============================================
-
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
-
-const libraries: ('places')[] = ['places'];
-
-// ============================================
 // COMPONENT
 // ============================================
 
@@ -67,11 +60,12 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
   const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load Google Maps API
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries,
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   // Initialize services when API is loaded
@@ -88,12 +82,17 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
     }
   }, [isLoaded]);
 
-  // Handle input change
+  // Handle input change with debounced API calls
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = e.target.value;
       onChange(newValue);
       setSelectedIndex(-1);
+
+      // Clear any pending debounce
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
 
       if (!newValue.trim() || !autocompleteServiceRef.current) {
         setSuggestions([]);
@@ -103,35 +102,38 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
 
       setIsLoading(true);
 
-      const request: google.maps.places.AutocompletionRequest = {
-        input: newValue,
-        sessionToken: sessionTokenRef.current!,
-      };
-
-      // Add country restriction if specified
-      if (restrictCountry) {
-        request.componentRestrictions = {
-          country: Array.isArray(restrictCountry) ? restrictCountry : [restrictCountry],
+      // Debounce API call by 300ms to reduce unnecessary requests
+      debounceTimerRef.current = setTimeout(() => {
+        const request: google.maps.places.AutocompletionRequest = {
+          input: newValue,
+          sessionToken: sessionTokenRef.current!,
         };
-      }
 
-      autocompleteServiceRef.current.getPlacePredictions(
-        request,
-        (predictions, status) => {
-          setIsLoading(false);
-
-          if (
-            status === google.maps.places.PlacesServiceStatus.OK &&
-            predictions
-          ) {
-            setSuggestions(predictions);
-            setShowSuggestions(true);
-          } else {
-            setSuggestions([]);
-            setShowSuggestions(false);
-          }
+        // Add country restriction if specified
+        if (restrictCountry) {
+          request.componentRestrictions = {
+            country: Array.isArray(restrictCountry) ? restrictCountry : [restrictCountry],
+          };
         }
-      );
+
+        autocompleteServiceRef.current?.getPlacePredictions(
+          request,
+          (predictions, status) => {
+            setIsLoading(false);
+
+            if (
+              status === google.maps.places.PlacesServiceStatus.OK &&
+              predictions
+            ) {
+              setSuggestions(predictions);
+              setShowSuggestions(true);
+            } else {
+              setSuggestions([]);
+              setShowSuggestions(false);
+            }
+          }
+        );
+      }, 300);
     },
     [onChange, restrictCountry]
   );

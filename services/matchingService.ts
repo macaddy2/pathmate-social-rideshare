@@ -8,7 +8,6 @@ import type {
   DriverRide,
   RideRequest,
   RouteMatch,
-  UserProfile,
 } from '../types';
 
 import {
@@ -18,7 +17,6 @@ import {
   validatePickupDropoffOrder,
   estimateDetour,
   isPointInBoundingBox,
-  calculatePolylineLength,
 } from './geoService';
 
 // ============================================
@@ -148,11 +146,14 @@ function evaluateMatch(
   // ============================================
   // FILTER 5: Direction Validation (CRITICAL)
   // This ensures "same direction" - pickup must come BEFORE dropoff
+  // Reuses pre-computed pickupResult/dropoffResult from Filter 4
   // ============================================
   const directionValidation = validatePickupDropoffOrder(
     request.pickup,
     request.dropoff,
-    routePoints
+    routePoints,
+    pickupResult,
+    dropoffResult,
   );
 
   if (!directionValidation.valid) {
@@ -161,6 +162,7 @@ function evaluateMatch(
 
   // ============================================
   // FILTER 6: Detour Tolerance
+  // Reuses pre-computed pickupResult/dropoffResult from Filter 4
   // ============================================
   const maxDetourMinutes = Math.min(ride.maxDetourMinutes, options.maxDetourMinutes);
 
@@ -169,7 +171,10 @@ function evaluateMatch(
     request.dropoff,
     routePoints,
     maxDetour,
-    maxDetourMinutes
+    maxDetourMinutes,
+    30,
+    pickupResult,
+    dropoffResult,
   );
 
   if (!detourEstimate.isAcceptable) {
