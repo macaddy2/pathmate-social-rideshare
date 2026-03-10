@@ -11,7 +11,8 @@ import { fetchAvailableRides } from '../services/dataService';
 import RatingModal from './RatingModal';
 import RouteMap from './RouteMap';
 import PlacesAutocomplete, { PlaceResult } from './PlacesAutocomplete';
-import type { Rating, GeoPoint, DriverRide, RideRequest, RouteMatch } from '../types';
+import type { GeoPoint, DriverRide, RideRequest, RouteMatch } from '../types';
+import { formatCurrency, formatTime } from '../lib/formatters';
 import { useLocationStore } from '../stores/useLocationStore';
 import { useRideStore } from '../stores/useRideStore';
 import { useChatStore } from '../stores/useChatStore';
@@ -100,15 +101,6 @@ const SearchRide: React.FC = () => {
     setSelectedMatch(null);
 
     try {
-      // Get AI insights for the route
-      const insights = await getRouteInsights(
-        search.pickupAddress,
-        search.dropoffAddress,
-        search.pickupLocation?.lat || userLocation?.lat,
-        search.pickupLocation?.lng || userLocation?.lng
-      );
-      setAiAnalysis(insights);
-
       // Create ride request
       const rideRequest: RideRequest = {
         id: `request-${Date.now()}`,
@@ -124,12 +116,21 @@ const SearchRide: React.FC = () => {
         createdAt: new Date(),
       };
 
-      // Find matching rides using our algorithm
-      const matchResults = await findMatchingRides(rideRequest, availableRides, {
-        timeWindowMinutes: 120, // Look 2 hours ahead
-        minMatchScore: 20, // Show more results for demo
-      });
+      // Run AI insights and ride matching in parallel
+      const [insights, matchResults] = await Promise.all([
+        getRouteInsights(
+          search.pickupAddress,
+          search.dropoffAddress,
+          search.pickupLocation?.lat || userLocation?.lat,
+          search.pickupLocation?.lng || userLocation?.lng
+        ),
+        findMatchingRides(rideRequest, availableRides, {
+          timeWindowMinutes: 120, // Look 2 hours ahead
+          minMatchScore: 20, // Show more results for demo
+        }),
+      ]);
 
+      setAiAnalysis(insights);
       setMatches(matchResults);
     } catch (error) {
       console.error('Search error:', error);
@@ -152,21 +153,6 @@ const SearchRide: React.FC = () => {
     }
   };
 
-  // Format price with currency
-  const formatPrice = (amount: number, currency: string) => {
-    const symbols: Record<string, string> = {
-      NGN: '₦',
-      USD: '$',
-      EUR: '€',
-      GBP: '£',
-    };
-    return `${symbols[currency] || currency}${amount.toLocaleString()}`;
-  };
-
-  // Format time
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -346,7 +332,7 @@ const SearchRide: React.FC = () => {
 
                     <div className="text-right">
                       <div className="text-lg font-black text-indigo-600">
-                        {formatPrice(match.price, match.currency)}
+                        {formatCurrency(match.price, match.currency)}
                       </div>
                       <div className="text-xs text-gray-500">
                         Departs {formatTime(ride.departureTime)}

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, Lightbulb, Send } from 'lucide-react';
 import { Message } from '../types';
 import { getComplexCoordinationAdvice } from '../services/geminiService';
+import { formatTime } from '../lib/formatters';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 
@@ -105,7 +106,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose, targetName, ta
                 {m.isAi && <div className="text-[10px] font-black uppercase mb-1 opacity-60">PathMate Smart Advisor</div>}
                 <p className="whitespace-pre-wrap">{m.text}</p>
                 <div className={`text-[10px] mt-1 opacity-60 text-right`}>
-                  {m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {formatTime(m.timestamp)}
                 </div>
               </div>
             </div>

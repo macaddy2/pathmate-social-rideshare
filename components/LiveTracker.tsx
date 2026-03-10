@@ -3,11 +3,12 @@
  * Real-time driver location tracking during active rides
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { AlertTriangle, X, User, Phone } from 'lucide-react';
 import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
 import { useRealTimeBooking, useDriverLocationTracker } from '../hooks/useRealTimeBooking';
 import type { GeoPoint, Booking } from '../types';
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '../lib/constants';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 
@@ -21,12 +22,6 @@ interface LiveTrackerProps {
   onClose?: () => void;
 }
 
-// ============================================
-// CONSTANTS
-// ============================================
-
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
-
 const mapContainerStyle = {
   width: '100%',
   height: '100%',
@@ -36,6 +31,20 @@ const defaultCenter = {
   lat: 6.5244,
   lng: 3.3792,
 };
+
+const PICKUP_ICON_URL = 'data:image/svg+xml,' + encodeURIComponent(`
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32">
+    <circle cx="12" cy="12" r="10" fill="#22C55E" stroke="#ffffff" stroke-width="2"/>
+    <circle cx="12" cy="12" r="4" fill="#ffffff"/>
+  </svg>
+`);
+
+const DROPOFF_ICON_URL = 'data:image/svg+xml,' + encodeURIComponent(`
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32">
+    <circle cx="12" cy="12" r="10" fill="#EF4444" stroke="#ffffff" stroke-width="2"/>
+    <rect x="8" y="8" width="8" height="8" fill="#ffffff" rx="1"/>
+  </svg>
+`);
 
 // ============================================
 // STATUS DISPLAY
@@ -66,15 +75,15 @@ const StatusBadge: React.FC<{ status: Booking['status'] }> = ({ status }) => {
 // ============================================
 
 const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, onClose }) => {
-  const { booking, driverLocation, eta, connectionStatus } = useRealTimeBooking(bookingId);
-  const { startTracking, stopTracking, isTracking } = useDriverLocationTracker(bookingId);
+  const { booking, driverLocation, etaToPickup, isConnected } = useRealTimeBooking({ bookingId, isDriver });
+  const { startTracking, stopTracking, isTracking } = useDriverLocationTracker({ bookingId });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [userLocation, setUserLocation] = useState<GeoPoint | null>(null);
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: ['places'],
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   // Get user's current location
@@ -153,9 +162,9 @@ const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, 
             {booking && (
               <div className="bg-gray-50 rounded-xl p-4 mb-4">
                 <StatusBadge status={booking.status} />
-                {eta && (
+                {etaToPickup && (
                   <p className="text-sm text-gray-600 mt-2">
-                    ETA: {eta} minutes
+                    ETA: {etaToPickup} minutes
                   </p>
                 )}
               </div>
@@ -197,12 +206,12 @@ const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, 
           <div>
             <h2 className="font-semibold text-gray-900">Live Tracking</h2>
             <p className="text-xs text-gray-500">
-              {connectionStatus === 'connected' ? (
+              {isConnected ? (
                 <span className="flex items-center gap-1">
                   <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                   Live
                 </span>
-              ) : connectionStatus === 'connecting' ? (
+              ) : !isConnected ? (
                 'Connecting...'
               ) : (
                 <span className="text-amber-600">Reconnecting...</span>
@@ -254,14 +263,7 @@ const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, 
           {booking?.pickup && (
             <Marker
               position={booking.pickup}
-              icon={{
-                url: 'data:image/svg+xml,' + encodeURIComponent(`
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32">
-                    <circle cx="12" cy="12" r="10" fill="#22C55E" stroke="#ffffff" stroke-width="2"/>
-                    <circle cx="12" cy="12" r="4" fill="#ffffff"/>
-                  </svg>
-                `),
-              }}
+              icon={{ url: PICKUP_ICON_URL }}
               title="Pickup"
             />
           )}
@@ -270,14 +272,7 @@ const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, 
           {booking?.dropoff && (
             <Marker
               position={booking.dropoff}
-              icon={{
-                url: 'data:image/svg+xml,' + encodeURIComponent(`
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32">
-                    <circle cx="12" cy="12" r="10" fill="#EF4444" stroke="#ffffff" stroke-width="2"/>
-                    <rect x="8" y="8" width="8" height="8" fill="#ffffff" rx="1"/>
-                  </svg>
-                `),
-              }}
+              icon={{ url: DROPOFF_ICON_URL }}
               title="Dropoff"
             />
           )}
@@ -326,10 +321,10 @@ const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, 
         </GoogleMap>
 
         {/* ETA overlay */}
-        {eta && (
+        {etaToPickup && (
           <div className="absolute top-4 left-4 bg-white rounded-xl shadow-lg px-4 py-2">
             <p className="text-sm text-gray-500">Estimated arrival</p>
-            <p className="text-2xl font-bold text-indigo-600">{eta} min</p>
+            <p className="text-2xl font-bold text-indigo-600">{etaToPickup} min</p>
           </div>
         )}
       </div>

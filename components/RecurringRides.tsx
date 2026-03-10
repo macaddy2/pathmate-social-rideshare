@@ -298,7 +298,7 @@ const RecurringRides: React.FC = () => {
                         <PlacesAutocomplete
                             value={origin}
                             onChange={setOrigin}
-                            onPlaceSelect={handleOriginSelect}
+                            onSelect={handleOriginSelect}
                             placeholder="Enter pickup location"
                         />
                     </div>
@@ -309,7 +309,7 @@ const RecurringRides: React.FC = () => {
                         <PlacesAutocomplete
                             value={destination}
                             onChange={setDestination}
-                            onPlaceSelect={handleDestinationSelect}
+                            onSelect={handleDestinationSelect}
                             placeholder="Enter destination"
                         />
                     </div>

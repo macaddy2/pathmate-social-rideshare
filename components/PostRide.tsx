@@ -4,10 +4,12 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Rating, GeoPoint, DriverRide, RideStatus, UserRole } from '../types';
+import { GeoPoint, DriverRide, RideStatus, UserRole } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchActiveRides } from '../services/dataService';
 import { createGeoRoute, formatDistance, formatDuration } from '../services/geoService';
+import { formatTime, formatShortDate, getCurrencySymbol } from '../lib/formatters';
+import { CURRENCIES } from '../lib/constants';
 import RatingModal from './RatingModal';
 import RouteMap from './RouteMap';
 import PlacesAutocomplete, { PlaceResult } from './PlacesAutocomplete';
@@ -42,13 +44,6 @@ interface RideFormState {
 // ============================================
 // CONSTANTS
 // ============================================
-
-const CURRENCIES = [
-  { code: 'NGN', symbol: '₦', name: 'Nigerian Naira' },
-  { code: 'USD', symbol: '$', name: 'US Dollar' },
-  { code: 'EUR', symbol: '€', name: 'Euro' },
-  { code: 'GBP', symbol: '£', name: 'British Pound' },
-];
 
 const DEFAULT_FORM_STATE: RideFormState = {
   originAddress: '',
@@ -100,7 +95,7 @@ const PostRide: React.FC = () => {
   }, []);
 
   // Handle form field changes
-  const updateForm = (field: keyof RideFormState, value: any) => {
+  const updateForm = <K extends keyof RideFormState>(field: K, value: RideFormState[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -251,20 +246,6 @@ const PostRide: React.FC = () => {
     showNotification('success', actionMessages[action]);
   };
 
-  // Format currency
-  const getCurrencySymbol = (code: string) => {
-    const currency = CURRENCIES.find((c) => c.code === code);
-    return currency?.symbol || code;
-  };
-
-  // Format time
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-  };
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -522,7 +503,7 @@ const PostRide: React.FC = () => {
                         {ride.route.originAddress.split(',')[0]} → {ride.route.destinationAddress.split(',')[0]}
                       </div>
                       <div className="text-xs text-gray-500 mt-1 flex items-center gap-3">
-                        <span>{formatDate(ride.departureTime)}</span>
+                        <span>{formatShortDate(ride.departureTime)}</span>
                         <span>•</span>
                         <span>{formatTime(ride.departureTime)}</span>
                         <span>•</span>
