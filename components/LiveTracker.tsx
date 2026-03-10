@@ -211,10 +211,8 @@ const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, 
                   <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                   Live
                 </span>
-              ) : !isConnected ? (
-                'Connecting...'
               ) : (
-                <span className="text-amber-600">Reconnecting...</span>
+                'Connecting...'
               )}
             </p>
           </div>
