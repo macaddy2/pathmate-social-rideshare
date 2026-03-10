@@ -7,6 +7,8 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { paymentService, formatCurrency, getTransactionStatusColor, getProviderForCurrency } from '../services/paymentService';
+import { formatRelativeTime } from '../lib/formatters';
+import { CURRENCIES } from '../lib/constants';
 import type { PaymentTransaction, Wallet } from '../types';
 import { useWalletStore } from '../stores/useWalletStore';
 import { Button } from './ui/button';
@@ -26,18 +28,6 @@ interface TransactionItemProps {
 const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, currentUserId }) => {
     const isIncoming = transaction.toUserId === currentUserId;
 
-    const formatTime = (date: Date) => {
-        const now = new Date();
-        const diffMs = now.getTime() - date.getTime();
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
-
-        if (diffHours < 1) return 'Just now';
-        if (diffHours < 24) return `${diffHours}h ago`;
-        if (diffDays < 7) return `${diffDays}d ago`;
-        return date.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
-    };
-
     return (
         <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${isIncoming ? 'bg-green-100' : 'bg-red-100'
@@ -54,7 +44,7 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, currentU
                         {transaction.status}
                     </Badge>
                 </div>
-                <p className="text-xs text-gray-500">{formatTime(transaction.createdAt)}</p>
+                <p className="text-xs text-gray-500">{formatRelativeTime(transaction.createdAt)}</p>
             </div>
 
             <p className={`font-bold ${isIncoming ? 'text-green-600' : 'text-gray-900'}`}>
@@ -85,17 +75,6 @@ const ActionButton: React.FC<ActionButtonProps> = ({ icon, label, onClick, color
         <span className="text-sm font-medium text-gray-700">{label}</span>
     </Button>
 );
-
-// ============================================
-// CURRENCY OPTIONS
-// ============================================
-
-const CURRENCIES = [
-    { code: 'NGN', symbol: '₦', name: 'Nigerian Naira', provider: 'Paystack' },
-    { code: 'USD', symbol: '$', name: 'US Dollar', provider: 'Stripe' },
-    { code: 'EUR', symbol: '€', name: 'Euro', provider: 'Stripe' },
-    { code: 'GBP', symbol: '£', name: 'British Pound', provider: 'Stripe' },
-];
 
 // ============================================
 // ADD FUNDS MODAL

@@ -278,15 +278,18 @@ export interface DirectionValidation {
 
 /**
  * Validate that pickup comes BEFORE dropoff along the route
- * This is the key check for "same direction" matching
+ * This is the key check for "same direction" matching.
+ * Accepts optional pre-computed PointToRouteResult to avoid redundant computation.
  */
 export function validatePickupDropoffOrder(
   pickup: GeoPoint,
   dropoff: GeoPoint,
-  routePoints: GeoPoint[]
+  routePoints: GeoPoint[],
+  precomputedPickup?: PointToRouteResult,
+  precomputedDropoff?: PointToRouteResult,
 ): DirectionValidation {
-  const pickupResult = findNearestPointOnRoute(pickup, routePoints);
-  const dropoffResult = findNearestPointOnRoute(dropoff, routePoints);
+  const pickupResult = precomputedPickup ?? findNearestPointOnRoute(pickup, routePoints);
+  const dropoffResult = precomputedDropoff ?? findNearestPointOnRoute(dropoff, routePoints);
 
   const totalRouteLength = calculatePolylineLength(routePoints);
   const overlapDistance = (dropoffResult.progressAlongRoute - pickupResult.progressAlongRoute) * totalRouteLength;
@@ -312,7 +315,8 @@ export interface DetourEstimate {
 
 /**
  * Estimate detour for picking up and dropping off a rider
- * This is a simple geometric estimate - for accurate results use Google Directions API
+ * This is a simple geometric estimate - for accurate results use Google Directions API.
+ * Accepts optional pre-computed PointToRouteResult to avoid redundant computation.
  */
 export function estimateDetour(
   pickup: GeoPoint,
@@ -320,10 +324,12 @@ export function estimateDetour(
   routePoints: GeoPoint[],
   maxDetourMeters: number,
   maxDetourMinutes: number,
-  avgSpeedKmh: number = 30 // Default average speed in city
+  avgSpeedKmh: number = 30, // Default average speed in city
+  precomputedPickup?: PointToRouteResult,
+  precomputedDropoff?: PointToRouteResult,
 ): DetourEstimate {
-  const pickupResult = findNearestPointOnRoute(pickup, routePoints);
-  const dropoffResult = findNearestPointOnRoute(dropoff, routePoints);
+  const pickupResult = precomputedPickup ?? findNearestPointOnRoute(pickup, routePoints);
+  const dropoffResult = precomputedDropoff ?? findNearestPointOnRoute(dropoff, routePoints);
 
   // Extra distance = distance from route to pickup + distance from route to dropoff
   // This is a simplified estimate (actual detour requires recalculating the route)

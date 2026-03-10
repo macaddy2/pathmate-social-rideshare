@@ -6,11 +6,16 @@ interface NotificationState {
   refresh: () => void
 }
 
-export const useNotificationStore = create<NotificationState>((set) => ({
-  unreadCount: notificationService.getUnreadCount(),
-  refresh: () => {
-    set({
-      unreadCount: notificationService.getUnreadCount(),
-    })
-  },
-}))
+export const useNotificationStore = create<NotificationState>((set) => {
+  // Auto-subscribe to notification service changes
+  notificationService.subscribe(() => {
+    set({ unreadCount: notificationService.getUnreadCount() })
+  })
+
+  return {
+    unreadCount: notificationService.getUnreadCount(),
+    refresh: () => {
+      set({ unreadCount: notificationService.getUnreadCount() })
+    },
+  }
+})

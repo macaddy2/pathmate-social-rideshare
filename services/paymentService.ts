@@ -315,15 +315,7 @@ export const paymentService = new PaymentService();
 // HELPER FUNCTIONS
 // ============================================
 
-export const formatCurrency = (amount: number, currency: string = 'NGN'): string => {
-    const symbols: Record<string, string> = {
-        NGN: '₦',
-        USD: '$',
-        EUR: '€',
-        GBP: '£',
-    };
-    return `${symbols[currency] || currency}${amount.toLocaleString()}`;
-};
+export { formatCurrency } from '../lib/formatters';
 
 export const getTransactionStatusColor = (status: PaymentTransaction['status']): string => {
     const colors: Record<PaymentTransaction['status'], string> = {

@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { notificationService, getNotificationIcon, getNotificationColor } from '../services/notificationService';
 import type { UserNotification } from '../types';
+import { formatRelativeTime } from '../lib/formatters';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 
@@ -21,20 +22,6 @@ interface NotificationItemProps {
 }
 
 const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onRead, onDelete }) => {
-    const formatTime = (date: Date) => {
-        const now = new Date();
-        const diffMs = now.getTime() - date.getTime();
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
-
-        if (diffMins < 1) return 'Just now';
-        if (diffMins < 60) return `${diffMins}m ago`;
-        if (diffHours < 24) return `${diffHours}h ago`;
-        if (diffDays < 7) return `${diffDays}d ago`;
-        return date.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
-    };
-
     return (
         <div
             className={`flex items-start gap-3 p-4 border-b border-gray-50 last:border-0 transition-colors ${!notification.read ? 'bg-indigo-50/50' : 'bg-white'
@@ -63,7 +50,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onRea
                     </Button>
                 </div>
                 <p className="text-sm text-gray-600 line-clamp-2">{notification.message}</p>
-                <p className="text-xs text-gray-400 mt-1">{formatTime(notification.createdAt)}</p>
+                <p className="text-xs text-gray-400 mt-1">{formatRelativeTime(notification.createdAt)}</p>
             </div>
 
             {!notification.read && (
