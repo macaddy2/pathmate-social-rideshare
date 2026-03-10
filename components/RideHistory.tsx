@@ -8,6 +8,7 @@ import { Route } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchRideHistory } from '../services/dataService';
 import type { RideHistoryEntry, RideStats } from '../types';
+import { formatCurrency, formatRelativeTime } from '../lib/formatters';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
@@ -48,21 +49,6 @@ interface RideCardProps {
 }
 
 const RideCard: React.FC<RideCardProps> = ({ ride, onRate }) => {
-    const formatCurrency = (amount: number, currency: string) => {
-        const symbols: Record<string, string> = { NGN: '₦', USD: '$', EUR: '€', GBP: '£' };
-        return `${symbols[currency] || currency}${amount.toLocaleString()}`;
-    };
-
-    const formatDate = (date: Date) => {
-        const now = new Date();
-        const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-
-        if (diffDays === 0) return 'Today';
-        if (diffDays === 1) return 'Yesterday';
-        if (diffDays < 7) return `${diffDays} days ago`;
-        return date.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
-    };
-
     return (
         <Card className={`rounded-2xl ${ride.status === 'cancelled' ? 'opacity-60' : ''}`}>
       <CardContent className="p-4">
@@ -74,7 +60,7 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onRate }) => {
                     </div>
                     <div>
                         <p className="font-semibold text-gray-900">{ride.partnerName}</p>
-                        <p className="text-xs text-gray-500">{formatDate(ride.date)}</p>
+                        <p className="text-xs text-gray-500">{formatRelativeTime(ride.date)}</p>
                     </div>
                 </div>
                 <div className="text-right">
@@ -181,8 +167,6 @@ const RideHistory: React.FC = () => {
 
         return filtered.sort((a, b) => b.date.getTime() - a.date.getTime());
     }, [history, roleFilter, timeFilter]);
-
-    const formatCurrency = (amount: number) => `₦${amount.toLocaleString()}`;
 
     return (
         <div className="space-y-6 animate-fadeIn pb-24">
