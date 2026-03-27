@@ -17,7 +17,12 @@
       "Bash(\"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" auth status)",
       "Bash(git remote:*)",
       "Bash(git branch:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "mcp__26e68fdb-29c2-492a-b3f0-cc2494f89a13__list_projects",
+      "mcp__26e68fdb-29c2-492a-b3f0-cc2494f89a13__list_teams",
+      "mcp__26e68fdb-29c2-492a-b3f0-cc2494f89a13__save_project",
+      "mcp__26e68fdb-29c2-492a-b3f0-cc2494f89a13__list_issue_statuses",
+      "mcp__26e68fdb-29c2-492a-b3f0-cc2494f89a13__save_issue"
     ]
   }
 }
