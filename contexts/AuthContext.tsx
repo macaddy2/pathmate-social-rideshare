@@ -1,6 +1,10 @@
 /**
  * AuthContext
- * Provides authentication state and methods throughout the app
+ * Provides authentication state and methods throughout the app.
+ *
+ * When Supabase is configured, uses real Supabase auth.
+ * When unconfigured (mock mode), provides an in-memory mock auth system
+ * that stores sessions in localStorage so the app is fully navigable.
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
@@ -36,6 +40,86 @@ interface AuthContextType extends AuthState {
 }
 
 // ============================================
+// MOCK AUTH HELPERS
+// ============================================
+
+const MOCK_STORAGE_KEY = 'pathmate_mock_auth';
+
+interface MockAuthData {
+  user: {
+    id: string;
+    email: string;
+    displayName: string;
+  };
+  profile: UserProfile;
+}
+
+function createMockUser(email: string, displayName: string): { user: User; session: Session; profile: UserProfile } {
+  const id = 'mock-' + btoa(email).replace(/[^a-zA-Z0-9]/g, '').slice(0, 12);
+
+  const user = {
+    id,
+    email,
+    app_metadata: {},
+    user_metadata: { display_name: displayName },
+    aud: 'authenticated',
+    created_at: new Date().toISOString(),
+    confirmed_at: new Date().toISOString(),
+    email_confirmed_at: new Date().toISOString(),
+    role: 'authenticated',
+  } as unknown as User;
+
+  const session = {
+    access_token: 'mock-access-token-' + id,
+    refresh_token: 'mock-refresh-token-' + id,
+    token_type: 'bearer',
+    expires_in: 3600,
+    expires_at: Math.floor(Date.now() / 1000) + 3600,
+    user,
+  } as unknown as Session;
+
+  const profile: UserProfile = {
+    id,
+    email,
+    displayName,
+    createdAt: new Date(),
+    emailVerified: true,
+    phoneVerified: false,
+    idVerified: false,
+    defaultRole: 'RIDER' as UserRole,
+    riderRating: 4.8,
+    riderRatingCount: 12,
+    driverRating: 4.9,
+    driverRatingCount: 8,
+  };
+
+  return { user, session, profile };
+}
+
+function saveMockAuth(email: string, displayName: string): void {
+  const data: MockAuthData = {
+    user: { id: 'mock-' + btoa(email).replace(/[^a-zA-Z0-9]/g, '').slice(0, 12), email, displayName },
+    profile: createMockUser(email, displayName).profile,
+  };
+  localStorage.setItem(MOCK_STORAGE_KEY, JSON.stringify(data));
+}
+
+function loadMockAuth(): { user: User; session: Session; profile: UserProfile } | null {
+  try {
+    const raw = localStorage.getItem(MOCK_STORAGE_KEY);
+    if (!raw) return null;
+    const data: MockAuthData = JSON.parse(raw);
+    return createMockUser(data.user.email, data.user.displayName);
+  } catch {
+    return null;
+  }
+}
+
+function clearMockAuth(): void {
+  localStorage.removeItem(MOCK_STORAGE_KEY);
+}
+
+// ============================================
 // CONTEXT
 // ============================================
 
@@ -67,8 +151,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setState((prev) => ({ ...prev, error: null }));
   }, []);
 
+  // ── MOCK MODE ──────────────────────────────────────────
+  const isMock = !isSupabaseConfigured();
+
   // Fetch user profile from database (with timeout so it can't hang forever)
   const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
+    if (isMock) {
+      const saved = loadMockAuth();
+      return saved?.profile || null;
+    }
+
     try {
       const fetchPromise = supabase
         .from('users')
@@ -83,7 +175,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
 
       if (error || !data) {
-        // Not an error if profile just doesn't exist yet (new signup)
         return null;
       }
 
@@ -112,10 +203,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Error fetching profile:', error);
       return null;
     }
-  }, []);
+  }, [isMock]);
 
   // Create initial profile for new users
   const createProfile = useCallback(async (user: User, displayName: string): Promise<UserProfile | null> => {
+    if (isMock) {
+      const { profile } = createMockUser(user.email || '', displayName);
+      return profile;
+    }
+
     try {
       const { data, error } = await supabase
         .from('users')
@@ -148,7 +244,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Error creating profile:', error);
       return null;
     }
-  }, []);
+  }, [isMock]);
 
   // Refresh profile
   const refreshProfile = useCallback(async () => {
@@ -162,16 +258,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let mounted = true;
 
     const initAuth = async () => {
-      // If env vars aren't set, skip Supabase and let user see the login form.
-      if (!isSupabaseConfigured()) {
-        console.warn('Supabase not configured — skipping auth init.');
-        if (mounted) setState({ user: null, profile: null, session: null, loading: false, error: null });
+      // ── Mock mode: restore from localStorage ──
+      if (isMock) {
+        const saved = loadMockAuth();
+        if (mounted) {
+          if (saved) {
+            setState({ user: saved.user, profile: saved.profile, session: saved.session, loading: false, error: null });
+          } else {
+            setState({ user: null, profile: null, session: null, loading: false, error: null });
+          }
+        }
         return;
       }
 
+      // ── Real Supabase mode ──
       try {
-        // Race getSession() against a 10-second timeout so we can
-        // never be stuck in a loading spinner indefinitely.
         const sessionPromise = supabase.auth.getSession();
         const timeoutPromise = new Promise<{ data: { session: null }, error: null }>((resolve) =>
           setTimeout(() => resolve({ data: { session: null }, error: null }), 10000)
@@ -197,7 +298,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (err: unknown) {
         if (!mounted) return;
-        // AbortError fires in React StrictMode dev — harmless, second mount will succeed.
         if (err instanceof Error && err.name === 'AbortError') return;
         console.error('Auth initialization error:', err);
         setState({ user: null, profile: null, session: null, loading: false, error: 'Failed to initialize authentication' });
@@ -206,59 +306,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initAuth();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return;
+    // Listen for auth changes (real mode only)
+    if (!isMock) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          if (!mounted) return;
 
-        if (event === 'SIGNED_IN' && session?.user) {
-          const profile = await fetchProfile(session.user.id);
-          setState({
-            user: session.user,
-            profile,
-            session,
-            loading: false,
-            error: null,
-          });
-        } else if (event === 'SIGNED_OUT') {
-          setState({
-            user: null,
-            profile: null,
-            session: null,
-            loading: false,
-            error: null,
-          });
-        } else if (event === 'USER_UPDATED' && session?.user) {
-          const profile = await fetchProfile(session.user.id);
-          setState((prev) => ({
-            ...prev,
-            user: session.user,
-            profile,
-            session,
-          }));
+          if (event === 'SIGNED_IN' && session?.user) {
+            const profile = await fetchProfile(session.user.id);
+            setState({
+              user: session.user,
+              profile,
+              session,
+              loading: false,
+              error: null,
+            });
+          } else if (event === 'SIGNED_OUT') {
+            setState({
+              user: null,
+              profile: null,
+              session: null,
+              loading: false,
+              error: null,
+            });
+          } else if (event === 'USER_UPDATED' && session?.user) {
+            const profile = await fetchProfile(session.user.id);
+            setState((prev) => ({
+              ...prev,
+              user: session.user,
+              profile,
+              session,
+            }));
+          }
         }
-      }
-    );
+      );
+
+      return () => {
+        mounted = false;
+        subscription.unsubscribe();
+      };
+    }
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
     };
-  }, [fetchProfile]);
+  }, [fetchProfile, isMock]);
 
   // Sign in with email/password
-  // Note: loading state is managed by onAuthStateChange — we don't set loading=true
-  // here to avoid a race where the auth event resolves before we clear loading.
   const signIn = useCallback(async (email: string, password: string) => {
+    if (isMock) {
+      if (!email || !password) {
+        const err = { message: 'Email and password are required', name: 'AuthError', status: 400 } as unknown as AuthError;
+        setError(err.message);
+        return { error: err };
+      }
+      // In mock mode, accept any email/password combo
+      const displayName = email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      const { user, session, profile } = createMockUser(email, displayName);
+      saveMockAuth(email, displayName);
+      setState({ user, profile, session, loading: false, error: null });
+      return { error: null };
+    }
+
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setError(error.message);
     }
     return { error };
-  }, [setError]);
+  }, [setError, isMock]);
 
   // Sign up with email/password
   const signUp = useCallback(async (email: string, password: string, displayName: string) => {
+    if (isMock) {
+      if (!email || !password || !displayName) {
+        const err = { message: 'All fields are required', name: 'AuthError', status: 400 } as unknown as AuthError;
+        setError(err.message);
+        return { error: err };
+      }
+      const { user, session, profile } = createMockUser(email, displayName);
+      saveMockAuth(email, displayName);
+      setState({ user, profile, session, loading: false, error: null });
+      return { error: null };
+    }
+
     setState((prev) => ({ ...prev, loading: true, error: null }));
 
     const { data, error } = await supabase.auth.signUp({
@@ -277,17 +407,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { error };
     }
 
-    // Create profile for new user
     if (data.user) {
       await createProfile(data.user, displayName);
     }
 
     setState((prev) => ({ ...prev, loading: false }));
     return { error: null };
-  }, [setError, createProfile]);
+  }, [setError, createProfile, isMock]);
 
   // Sign out
   const signOut = useCallback(async () => {
+    if (isMock) {
+      clearMockAuth();
+      setState({ user: null, profile: null, session: null, loading: false, error: null });
+      return;
+    }
+
     setState((prev) => ({ ...prev, loading: true }));
     await supabase.auth.signOut();
     setState({
@@ -297,10 +432,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       loading: false,
       error: null,
     });
-  }, []);
+  }, [isMock]);
 
   // Sign in with Google
   const signInWithGoogle = useCallback(async () => {
+    if (isMock) {
+      // In mock mode, simulate Google sign-in with a demo user
+      const email = 'demo.user@gmail.com';
+      const displayName = 'Demo User';
+      const { user, session, profile } = createMockUser(email, displayName);
+      saveMockAuth(email, displayName);
+      setState({ user, profile, session, loading: false, error: null });
+      return { error: null };
+    }
+
     setState((prev) => ({ ...prev, loading: true, error: null }));
 
     const { error } = await supabase.auth.signInWithOAuth({
@@ -316,7 +461,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     return { error };
-  }, [setError]);
+  }, [setError, isMock]);
 
   // Update profile
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
@@ -324,8 +469,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { error: new Error('No user logged in') };
     }
 
+    if (isMock) {
+      // Update local mock profile
+      setState((prev) => ({
+        ...prev,
+        profile: prev.profile ? { ...prev.profile, ...updates } : prev.profile,
+      }));
+      // Persist display name change
+      if (updates.displayName && state.profile) {
+        saveMockAuth(state.profile.email, updates.displayName);
+      }
+      return { error: null };
+    }
+
     try {
-      // Map UserProfile fields to database columns
       const dbUpdates: Record<string, any> = {};
       if (updates.displayName) dbUpdates.display_name = updates.displayName;
       if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
@@ -344,7 +501,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
 
-      // Refresh profile
       await refreshProfile();
 
       return { error: null };
@@ -352,7 +508,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Error updating profile:', error);
       return { error: error as Error };
     }
-  }, [state.user, refreshProfile]);
+  }, [state.user, state.profile, refreshProfile, isMock]);
 
   const value: AuthContextType = {
     ...state,
