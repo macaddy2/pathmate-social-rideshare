@@ -243,7 +243,9 @@ export interface Database {
  * Used to determine if we should attempt Supabase queries or use mock fallback
  */
 export const isSupabaseConfigured = (): boolean => {
-  return Boolean(supabaseUrl && supabaseAnonKey);
+  // Supabase is disabled — using mock data mode.
+  // Re-enable by removing this override once a valid Supabase project is connected.
+  return false;
 };
 
 // ============================================
