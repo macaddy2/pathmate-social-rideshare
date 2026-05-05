@@ -9,6 +9,12 @@ const __dirname = dirname(__filename);
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const DIST_DIR = join(__dirname, 'dist');
+const INDEX_HTML = join(DIST_DIR, 'index.html');
+
+if (!existsSync(INDEX_HTML)) {
+  console.error(`[server] Missing ${INDEX_HTML} — run "npm run build" before starting.`);
+  process.exit(1);
+}
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -29,15 +35,19 @@ const MIME_TYPES = {
 };
 
 const server = createServer((req, res) => {
-  // Strip query string
   const urlPath = req.url.split('?')[0].split('#')[0];
+
+  if (urlPath === '/healthz') {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('ok');
+    return;
+  }
 
   let filePath = join(DIST_DIR, urlPath === '/' ? 'index.html' : urlPath);
 
-  // SPA fallback: if file doesn't exist or has no extension, serve index.html
   const fileExt = extname(filePath);
   if (!fileExt || !existsSync(filePath) || statSync(filePath).isDirectory()) {
-    filePath = join(DIST_DIR, 'index.html');
+    filePath = INDEX_HTML;
   }
 
   try {
@@ -49,6 +59,11 @@ const server = createServer((req, res) => {
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('Not Found');
   }
+});
+
+server.on('error', (err) => {
+  console.error('[server] listen error:', err);
+  process.exit(1);
 });
 
 server.listen(PORT, '0.0.0.0', () => {
