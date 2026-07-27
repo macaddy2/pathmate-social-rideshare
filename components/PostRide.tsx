@@ -4,16 +4,15 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router';
 import { GeoPoint, DriverRide, RideStatus, UserRole } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchActiveRides } from '../services/dataService';
 import { createGeoRoute, formatDistance, formatDuration } from '../services/geoService';
 import { formatTime, formatShortDate, getCurrencySymbol } from '../lib/formatters';
 import { CURRENCIES } from '../lib/constants';
-import RatingModal from './RatingModal';
 import RouteMap from './RouteMap';
 import PlacesAutocomplete, { PlaceResult } from './PlacesAutocomplete';
-import { useRideStore } from '../stores/useRideStore';
 import { useChatStore } from '../stores/useChatStore';
 import { useActiveRidesStore, type ActiveRide } from '../stores/useActiveRidesStore';
 import { Check, X, Bell, Map, ChevronDown, Star, MessageCircle } from 'lucide-react';
@@ -65,7 +64,7 @@ const DEFAULT_FORM_STATE: RideFormState = {
 
 const PostRide: React.FC = () => {
   const { user } = useAuth();
-  const { addRating: onRate } = useRideStore();
+  const navigate = useNavigate();
   const { openChat: onOpenChat } = useChatStore();
   const { activeRides, setActiveRides, addRide, removeRide, updateRide } = useActiveRidesStore();
   // Form state
@@ -77,13 +76,6 @@ const PostRide: React.FC = () => {
   const [submitted, setSubmitted] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [selectedRide, setSelectedRide] = useState<string | null>(null);
-
-  // Rating modal
-  const [ratingModal, setRatingModal] = useState<{
-    isOpen: boolean;
-    targetName: string;
-    targetId: string;
-  } | null>(null);
 
   // Initialize active rides from data service (only if store is empty)
   useEffect(() => {
@@ -250,16 +242,6 @@ const PostRide: React.FC = () => {
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Rating Modal */}
-      {ratingModal && (
-        <RatingModal
-          isOpen={ratingModal.isOpen}
-          onClose={() => setRatingModal(null)}
-          targetName={ratingModal.targetName}
-          targetId={ratingModal.targetId}
-          role="RIDER"
-          onSubmit={onRate}
-        />
-      )}
 
       {/* Notification */}
       {notification && (
@@ -593,11 +575,11 @@ const PostRide: React.FC = () => {
                                     </Button>
                                     <Button
                                       variant="ghost"
-                                      size="icon"
-                                      onClick={() => setRatingModal({ isOpen: true, targetName: rider.name, targetId: rider.id })}
-                                      className="bg-yellow-100 text-yellow-600 hover:bg-yellow-200 h-9 w-9"
+                                      size="sm"
+                                      onClick={() => navigate('/trips')}
+                                      className="h-9 rounded-lg bg-blue-100 px-3 text-xs font-bold text-blue-700 hover:bg-blue-200"
                                     >
-                                      <Star className="w-4 h-4 fill-current" />
+                                      Trip
                                     </Button>
                                   </>
                                 )}

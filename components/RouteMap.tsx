@@ -168,7 +168,7 @@ const RouteMap: React.FC<RouteMapProps> = ({
 
     // Only fit bounds if we have points
     if (!bounds.isEmpty()) {
-      map.fitBounds(bounds, { padding: 50 });
+      map.fitBounds(bounds, 50);
     }
   }, [map, route, pickupPoint, dropoffPoint, userLocation, driverLocation]);
 

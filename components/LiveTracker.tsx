@@ -54,10 +54,12 @@ const StatusBadge: React.FC<{ status: Booking['status'] }> = ({ status }) => {
   const statusConfig: Record<Booking['status'], { label: string; color: string; icon: string }> = {
     pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-800', icon: '⏳' },
     accepted: { label: 'Accepted', color: 'bg-blue-100 text-blue-800', icon: '✓' },
-    driver_arrived: { label: 'Driver Arrived', color: 'bg-green-100 text-green-800', icon: '📍' },
+    rejected: { label: 'Rejected', color: 'bg-red-100 text-red-800', icon: '✗' },
     picked_up: { label: 'In Transit', color: 'bg-indigo-100 text-indigo-800', icon: '🚗' },
+    dropped_off: { label: 'Dropped Off', color: 'bg-green-100 text-green-800', icon: '✓' },
     completed: { label: 'Completed', color: 'bg-green-100 text-green-800', icon: '✅' },
     cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-800', icon: '✗' },
+    no_show: { label: 'No Show', color: 'bg-red-100 text-red-800', icon: '✗' },
   };
 
   const config = statusConfig[status];
@@ -124,22 +126,17 @@ const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, 
     const bounds = new google.maps.LatLngBounds();
 
     if (driverLocation) {
-      bounds.extend(driverLocation);
+      bounds.extend(driverLocation.point);
     }
 
-    if (booking.pickup) {
-      bounds.extend(booking.pickup);
-    }
-
-    if (booking.dropoff) {
-      bounds.extend(booking.dropoff);
-    }
+    bounds.extend(booking.pickupPoint);
+    bounds.extend(booking.dropoffPoint);
 
     if (userLocation) {
       bounds.extend(userLocation);
     }
 
-    map.fitBounds(bounds, { padding: 50 });
+    map.fitBounds(bounds, 50);
   }, [map, booking, driverLocation, userLocation]);
 
   useEffect(() => {
@@ -225,7 +222,7 @@ const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, 
       <div className="flex-1 relative">
         <GoogleMap
           mapContainerStyle={mapContainerStyle}
-          center={driverLocation || booking?.pickup || defaultCenter}
+          center={driverLocation?.point || booking?.pickupPoint || defaultCenter}
           zoom={14}
           onLoad={setMap}
           options={{
@@ -243,7 +240,7 @@ const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, 
           {/* Driver location marker */}
           {driverLocation && (
             <Marker
-              position={driverLocation}
+              position={driverLocation.point}
               icon={{
                 path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
                 scale: 6,
@@ -258,18 +255,18 @@ const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, 
           )}
 
           {/* Pickup marker */}
-          {booking?.pickup && (
+          {booking?.pickupPoint && (
             <Marker
-              position={booking.pickup}
+              position={booking.pickupPoint}
               icon={{ url: PICKUP_ICON_URL }}
               title="Pickup"
             />
           )}
 
           {/* Dropoff marker */}
-          {booking?.dropoff && (
+          {booking?.dropoffPoint && (
             <Marker
-              position={booking.dropoff}
+              position={booking.dropoffPoint}
               icon={{ url: DROPOFF_ICON_URL }}
               title="Dropoff"
             />
@@ -292,9 +289,9 @@ const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, 
           )}
 
           {/* Route line from driver to pickup (if not yet picked up) */}
-          {driverLocation && booking?.pickup && booking.status !== 'picked_up' && booking.status !== 'completed' && (
+          {driverLocation && booking?.pickupPoint && booking.status !== 'picked_up' && booking.status !== 'completed' && (
             <Polyline
-              path={[driverLocation, booking.pickup]}
+              path={[driverLocation.point, booking.pickupPoint]}
               options={{
                 strokeColor: '#4F46E5',
                 strokeWeight: 3,
@@ -305,9 +302,9 @@ const LiveTracker: React.FC<LiveTrackerProps> = ({ bookingId, isDriver = false, 
           )}
 
           {/* Route line from pickup to dropoff */}
-          {booking?.pickup && booking?.dropoff && (
+          {booking?.pickupPoint && booking?.dropoffPoint && (
             <Polyline
-              path={[booking.pickup, booking.dropoff]}
+              path={[booking.pickupPoint, booking.dropoffPoint]}
               options={{
                 strokeColor: '#22C55E',
                 strokeWeight: 3,
