@@ -1,63 +1,88 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router';
-import { Home, Search, PlusCircle, Clock, User, Bell, MapPin } from 'lucide-react';
+import {
+  Bell,
+  CircleUserRound,
+  GitMerge,
+  House,
+  MessageCircle,
+  Route,
+  Search,
+} from 'lucide-react';
 import NotificationCenter from './NotificationCenter';
+import { UserRole } from '../types';
 import { useRideStore } from '../stores/useRideStore';
 import { useNotificationStore } from '../stores/useNotificationStore';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Avatar, AvatarFallback } from './ui/avatar';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { role } = useRideStore();
+  const { role, setRole } = useRideStore();
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
-  const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-colors ${
-      isActive ? 'text-indigo-600 bg-indigo-50' : 'text-gray-400'
+    `flex min-w-14 flex-col items-center gap-1 rounded-xl px-2 py-1.5 text-[10px] font-semibold transition-colors ${
+      isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-400 hover:text-slate-700'
     }`;
 
+  const toggleRole = () => {
+    const nextRole = role === UserRole.DRIVER ? UserRole.RIDER : UserRole.DRIVER;
+    setRole(nextRole);
+    navigate(nextRole === UserRole.DRIVER ? '/post' : '/search');
+  };
+
   return (
-    <div className="flex flex-col h-screen bg-gray-50 max-w-md mx-auto shadow-2xl overflow-hidden border-x border-gray-200">
-      {/* Header */}
-      <header className="bg-indigo-600 text-white p-4 flex justify-between items-center shadow-md">
-        <div className="flex items-center gap-2">
-          <div className="bg-white p-1 rounded-lg">
-            <MapPin className="w-6 h-6 text-indigo-600" />
+    <div className="mx-auto flex h-screen max-w-md flex-col overflow-hidden border-x border-slate-200 bg-slate-50 shadow-2xl">
+      <header className="border-b border-blue-100 bg-white px-4 py-3">
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="flex min-h-11 items-center gap-2 rounded-xl pr-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            aria-label="Go to PathMate home"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-700 text-white">
+              <GitMerge className="h-5 w-5" strokeWidth={2.4} />
+            </span>
+            <span>
+              <span className="block text-lg font-extrabold tracking-[-0.03em] text-slate-950">PathMate</span>
+              <span className="block text-[10px] font-semibold text-slate-500">Better routes, together</span>
+            </span>
+          </button>
+
+          <div className="flex items-center gap-1.5">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={toggleRole}
+              className="h-9 rounded-full bg-blue-50 px-3 text-xs font-bold text-blue-700 hover:bg-blue-100"
+            >
+              {role === UserRole.DRIVER ? 'Driver' : 'Rider'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowNotifications(true)}
+              className="relative h-10 w-10 rounded-full text-slate-600"
+              aria-label="Open notifications"
+            >
+              <Bell className="h-5 w-5" />
+              {unreadCount > 0 ? (
+                <Badge
+                  variant="destructive"
+                  className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center p-0 text-[9px]"
+                >
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Badge>
+              ) : null}
+            </Button>
           </div>
-          <h1 className="text-xl font-bold tracking-tight">PathMate</h1>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowNotifications(true)}
-            className="relative text-white hover:bg-indigo-500 hover:text-white rounded-full"
-          >
-            <Bell className="w-6 h-6" />
-            {unreadCount > 0 && (
-              <Badge variant="destructive" className="absolute top-1 right-1 w-4 h-4 p-0 text-[10px] font-bold flex items-center justify-center">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </Badge>
-            )}
-          </Button>
-          <span className="text-xs bg-indigo-500 px-2 py-1 rounded-full">{role}</span>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/profile')}
-            className="rounded-full p-0 h-8 w-8 hover:bg-indigo-300"
-          >
-            <Avatar className="h-8 w-8 border-2 border-white">
-              <AvatarFallback className="bg-indigo-400 text-sm font-bold text-white">JD</AvatarFallback>
-            </Avatar>
-          </Button>
         </div>
       </header>
 
@@ -66,32 +91,28 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         onClose={() => setShowNotifications(false)}
       />
 
-      {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto p-4 pb-24">
-        {children}
-      </main>
+      <main className="flex-1 overflow-y-auto p-4 pb-28">{children}</main>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-gray-200 flex justify-around p-2 z-50">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 mx-auto flex max-w-md justify-around border-t border-slate-200 bg-white/95 px-2 py-2 backdrop-blur">
         <NavLink to="/" className={navLinkClass} end>
-          <Home className="w-5 h-5" />
-          <span className="text-[9px] font-medium">Home</span>
+          <House className="h-5 w-5" />
+          <span>Home</span>
         </NavLink>
-        <NavLink to="/search" className={navLinkClass}>
-          <Search className="w-5 h-5" />
-          <span className="text-[9px] font-medium">Search</span>
+        <NavLink to={role === UserRole.DRIVER ? '/post' : '/search'} className={navLinkClass}>
+          <Search className="h-5 w-5" />
+          <span>{role === UserRole.DRIVER ? 'Offer' : 'Find'}</span>
         </NavLink>
-        <NavLink to="/post" className={navLinkClass}>
-          <PlusCircle className="w-5 h-5" />
-          <span className="text-[9px] font-medium">Post</span>
+        <NavLink to="/trips" className={navLinkClass}>
+          <Route className="h-5 w-5" />
+          <span>Trips</span>
         </NavLink>
-        <NavLink to="/history" className={navLinkClass}>
-          <Clock className="w-5 h-5" />
-          <span className="text-[9px] font-medium">History</span>
+        <NavLink to="/messages" className={navLinkClass}>
+          <MessageCircle className="h-5 w-5" />
+          <span>Messages</span>
         </NavLink>
         <NavLink to="/profile" className={navLinkClass}>
-          <User className="w-5 h-5" />
-          <span className="text-[9px] font-medium">Profile</span>
+          <CircleUserRound className="h-5 w-5" />
+          <span>Account</span>
         </NavLink>
       </nav>
     </div>
