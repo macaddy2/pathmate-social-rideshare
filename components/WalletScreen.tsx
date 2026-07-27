@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, CreditCard, History, LockKeyhole, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { paymentService, formatCurrency, getTransactionStatusColor, getProviderForCurrency } from '../services/paymentService';
 import { formatRelativeTime } from '../lib/formatters';
@@ -15,6 +15,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 
 // ============================================
 // TRANSACTION ITEM
@@ -59,7 +60,7 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, currentU
 // ============================================
 
 interface ActionButtonProps {
-    icon: string;
+    icon: React.ReactNode;
     label: string;
     onClick: () => void;
     color?: string;
@@ -71,7 +72,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({ icon, label, onClick, color
         onClick={onClick}
         className={`flex flex-col items-center gap-2 p-4 h-auto rounded-2xl ${color} transition-transform active:scale-95`}
     >
-        <span className="text-2xl">{icon}</span>
+        <span className="text-blue-700">{icon}</span>
         <span className="text-sm font-medium text-gray-700">{label}</span>
     </Button>
 );
@@ -219,6 +220,67 @@ const AddFundsModal: React.FC<AddFundsModalProps> = ({ isOpen, onClose, onSucces
     );
 };
 
+const WithdrawModal: React.FC<{
+    isOpen: boolean;
+    balance: number;
+    onClose: () => void;
+    onSuccess: () => void;
+}> = ({ isOpen, balance, onClose, onSuccess }) => {
+    const [amount, setAmount] = useState('');
+    const [bank, setBank] = useState('GTBank');
+    const [account, setAccount] = useState('');
+    const [complete, setComplete] = useState(false);
+
+    const submit = async () => {
+        const numericAmount = Number(amount);
+        if (!numericAmount || numericAmount > balance || account.length < 10) return;
+        await paymentService.withdraw(numericAmount, { bankCode: bank, accountNumber: account });
+        setComplete(true);
+        onSuccess();
+    };
+
+    const close = () => {
+        setAmount('');
+        setAccount('');
+        setComplete(false);
+        onClose();
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={(open) => !open && close()}>
+            <DialogContent className="rounded-3xl">
+                <DialogHeader>
+                    <DialogTitle>{complete ? 'Withdrawal requested' : 'Withdraw earnings'}</DialogTitle>
+                    <DialogDescription>
+                        {complete ? 'Your bank transfer request is being processed.' : `Available balance: ${formatCurrency(balance, 'NGN')}`}
+                    </DialogDescription>
+                </DialogHeader>
+                {complete ? (
+                    <Button onClick={close} className="h-12 rounded-xl bg-blue-700 font-bold hover:bg-blue-800">Done</Button>
+                ) : (
+                    <div className="space-y-3">
+                        <Input type="number" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="Amount in naira" className="h-12 rounded-xl" />
+                        <select value={bank} onChange={(event) => setBank(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
+                            <option>GTBank</option>
+                            <option>Access Bank</option>
+                            <option>Zenith Bank</option>
+                            <option>First Bank</option>
+                        </select>
+                        <Input value={account} onChange={(event) => setAccount(event.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="10-digit account number" className="h-12 rounded-xl" />
+                        <Button
+                            onClick={submit}
+                            disabled={!Number(amount) || Number(amount) > balance || account.length !== 10}
+                            className="h-12 w-full rounded-xl bg-blue-700 font-bold hover:bg-blue-800"
+                        >
+                            Confirm withdrawal
+                        </Button>
+                    </div>
+                )}
+            </DialogContent>
+        </Dialog>
+    );
+};
+
 // ============================================
 // MAIN COMPONENT
 // ============================================
@@ -240,15 +302,15 @@ const WalletScreen: React.FC = () => {
     return (
         <div className="space-y-4 animate-fadeIn pb-24">
             {/* Balance Card */}
-            <Card className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-6 text-white shadow-xl border-0">
-                <p className="text-emerald-100 text-sm mb-1">Available Balance</p>
+            <Card className="rounded-3xl border-0 bg-[#102a43] p-6 text-white shadow-xl">
+                <p className="mb-1 text-sm text-blue-100">Available Balance</p>
                 <h2 className="text-3xl font-bold mb-4">
                     {formatCurrency(wallet?.balance || 0, wallet?.currency || 'NGN')}
                 </h2>
 
                 {pendingAmount > 0 && (
                     <div className="bg-white/20 backdrop-blur-sm rounded-xl px-3 py-2 inline-flex items-center gap-2">
-                        <span className="text-xs">🔒</span>
+                        <LockKeyhole className="h-4 w-4" />
                         <span className="text-sm">
                             {formatCurrency(pendingAmount, 'NGN')} in escrow
                         </span>
@@ -259,27 +321,27 @@ const WalletScreen: React.FC = () => {
             {/* Quick Actions */}
             <div className="grid grid-cols-3 gap-3">
                 <ActionButton
-                    icon="💳"
+                    icon={<CreditCard className="h-5 w-5" />}
                     label="Add Funds"
                     onClick={() => setShowAddFunds(true)}
                     color="bg-indigo-50"
                 />
                 <ActionButton
-                    icon="🏦"
+                    icon={<ArrowUpFromLine className="h-5 w-5" />}
                     label="Withdraw"
                     onClick={() => setShowWithdraw(true)}
                     color="bg-green-50"
                 />
                 <ActionButton
-                    icon="📊"
+                    icon={<History className="h-5 w-5" />}
                     label="History"
-                    onClick={() => { }}
+                    onClick={() => document.getElementById('wallet-history')?.scrollIntoView({ behavior: 'smooth' })}
                     color="bg-purple-50"
                 />
             </div>
 
             {/* Payment Methods */}
-            <Card className="rounded-2xl">
+            <Card id="wallet-history" className="rounded-2xl">
               <CardContent className="p-4">
                 <h3 className="font-bold text-gray-900 mb-3">Payment Methods</h3>
                 <div className="space-y-2">
@@ -351,6 +413,12 @@ const WalletScreen: React.FC = () => {
             <AddFundsModal
                 isOpen={showAddFunds}
                 onClose={() => setShowAddFunds(false)}
+                onSuccess={refreshWallet}
+            />
+            <WithdrawModal
+                isOpen={showWithdraw}
+                balance={wallet?.balance || 0}
+                onClose={() => setShowWithdraw(false)}
                 onSuccess={refreshWallet}
             />
         </div>

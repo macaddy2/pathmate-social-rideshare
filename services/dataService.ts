@@ -414,9 +414,9 @@ export async function fetchUserRatings(userId: string): Promise<Rating[]> {
       }));
     },
     () => [
-      { fromId: 'a', toId: userId, score: 5, role: 'DRIVER' as const },
-      { fromId: 'b', toId: userId, score: 4, role: 'DRIVER' as const },
-      { fromId: 'c', toId: userId, score: 5, role: 'RIDER' as const },
+      { fromId: 'a', toId: userId, score: 5, role: 'DRIVER' as const, comment: undefined },
+      { fromId: 'b', toId: userId, score: 4, role: 'DRIVER' as const, comment: undefined },
+      { fromId: 'c', toId: userId, score: 5, role: 'RIDER' as const, comment: undefined },
     ],
     'fetchUserRatings'
   );

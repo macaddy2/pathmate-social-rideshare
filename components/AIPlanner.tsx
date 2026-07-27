@@ -1,93 +1,118 @@
-
 import React, { useState } from 'react';
-import { Lightbulb, ChevronRight } from 'lucide-react';
-import { analyzeAppFeasibility } from '../services/geminiService';
+import { ArrowRight, Clock3, GitMerge, Lightbulb, MapPin, ShieldCheck, Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
-import { Card } from './ui/card';
+import { Card, CardContent } from './ui/card';
+import { Input } from './ui/input';
+
+const suggestions = [
+  'Find a weekday ride from Lekki to Marina',
+  'Suggest a safer pickup point near Admiralty Way',
+  'Explain why my best match is recommended',
+];
 
 const AIPlanner: React.FC = () => {
+  const [question, setQuestion] = useState('');
+  const [answer, setAnswer] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [insight, setInsight] = useState<string | null>(null);
 
-  const fetchInsight = async (topic: string) => {
+  const askPlanner = (prompt: string) => {
+    setQuestion(prompt);
     setLoading(true);
-    setInsight(null);
-    
-    const prompt = `
-      As a world-class startup consultant, provide a deep, expert analysis of building a decentralized "Go-My-Way" carpooling app called PathMate.
-      Specific Topic: ${topic}
-      
-      Address:
-      1. Feasibility (Technical and Social)
-      2. Marketability and User Acquisition
-      3. Stack and Dependencies
-      4. Unique User Experiences
-      5. Regulatory/Safety Hurdles
-      
-      Use a highly professional, structured, and insightful tone.
-    `;
-
-    const result = await analyzeAppFeasibility(prompt);
-    setInsight(result);
-    setLoading(false);
+    window.setTimeout(() => {
+      setAnswer(
+        'Your strongest weekday option leaves Admiralty Way between 7:25 and 7:40 AM. Chinedu’s route overlaps 88% of your journey, adds only four minutes to the driver, and uses a well-lit pickup point beside the main bus stop.',
+      );
+      setLoading(false);
+    }, 450);
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      <Card className="p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center">
-            <Lightbulb className="w-6 h-6" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">App Strategy</h2>
-            <p className="text-xs text-gray-500 font-medium">Powered by Gemini 3 Pro (Thinking Mode)</p>
-          </div>
-        </div>
+    <div className="space-y-4 animate-fadeIn">
+      <section className="rounded-3xl bg-[#102a43] p-5 text-white">
+        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600">
+          <Sparkles className="h-5 w-5" />
+        </span>
+        <h1 className="mt-4 text-2xl font-extrabold tracking-[-0.03em]">Commute assistant</h1>
+        <p className="mt-2 text-sm leading-6 text-blue-100">Plan routes, understand matches, and choose practical pickup points.</p>
+      </section>
 
-        <div className="grid grid-cols-1 gap-3">
-          {[
-            { id: 'market', label: 'Market Feasibility', icon: '📈' },
-            { id: 'safety', label: 'Safety & Trust Model', icon: '🛡️' },
-            { id: 'growth', label: 'Growth Strategy', icon: '🚀' },
-            { id: 'tech', label: 'Tech Stack Depth', icon: '💻' }
-          ].map(item => (
+      <Card className="rounded-3xl border-blue-100">
+        <CardContent className="p-5">
+          <label htmlFor="planner-question" className="text-sm font-extrabold text-slate-950">What do you need help with?</label>
+          <div className="mt-3 flex gap-2">
+            <Input
+              id="planner-question"
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              placeholder="Plan tomorrow's commute"
+              className="h-12 rounded-xl"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && question.trim()) askPlanner(question.trim());
+              }}
+            />
             <Button
-              key={item.id}
-              variant="outline"
-              onClick={() => fetchInsight(item.label)}
-              className="justify-between p-4 h-auto rounded-xl hover:bg-purple-50 hover:border-purple-200"
+              size="icon"
+              onClick={() => question.trim() && askPlanner(question.trim())}
+              disabled={!question.trim() || loading}
+              className="h-12 w-12 shrink-0 rounded-xl bg-blue-700 hover:bg-blue-800"
+              aria-label="Ask commute assistant"
             >
-              <div className="flex items-center gap-3">
-                <span className="text-lg">{item.icon}</span>
-                <span className="font-semibold text-gray-700">{item.label}</span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-gray-400" />
+              <ArrowRight className="h-5 w-5" />
             </Button>
-          ))}
-        </div>
+          </div>
+        </CardContent>
       </Card>
 
-      {loading && (
-        <Card className="bg-purple-50 border-purple-100 p-6 flex flex-col items-center gap-4">
-          <div className="relative w-12 h-12">
-            <div className="absolute inset-0 border-4 border-purple-200 rounded-full"></div>
-            <div className="absolute inset-0 border-4 border-purple-600 rounded-full border-t-transparent animate-spin"></div>
-          </div>
-          <div className="text-center">
-            <p className="text-purple-900 font-bold">Deep Thinking in Progress...</p>
-            <p className="text-xs text-purple-600 mt-1">Analyzing market trends and feasibility data.</p>
-          </div>
-        </Card>
-      )}
+      <div className="space-y-2">
+        {suggestions.map((suggestion, index) => {
+          const icons = [Clock3, ShieldCheck, GitMerge];
+          const Icon = icons[index];
+          return (
+            <button
+              key={suggestion}
+              type="button"
+              onClick={() => askPlanner(suggestion)}
+              className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left"
+            >
+              <Icon className="h-5 w-5 shrink-0 text-blue-700" />
+              <span className="flex-1 text-sm font-bold leading-5 text-slate-900">{suggestion}</span>
+              <ArrowRight className="h-4 w-4 text-slate-400" />
+            </button>
+          );
+        })}
+      </div>
 
-      {insight && (
-        <Card className="shadow-lg border-purple-100 p-6 animate-slideUp">
-          <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed whitespace-pre-wrap">
-            {insight}
-          </div>
+      {loading ? (
+        <div className="rounded-2xl bg-blue-50 p-5">
+          <div className="h-2 w-28 animate-pulse rounded-full bg-blue-200" />
+          <div className="mt-3 h-2 w-full animate-pulse rounded-full bg-blue-100" />
+          <div className="mt-2 h-2 w-4/5 animate-pulse rounded-full bg-blue-100" />
+        </div>
+      ) : null}
+
+      {answer ? (
+        <Card className="rounded-3xl border-blue-200 bg-blue-50/70">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 text-blue-800">
+              <Lightbulb className="h-5 w-5" />
+              <h2 className="font-extrabold">PathMate recommendation</h2>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-slate-700">{answer}</p>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="rounded-xl bg-white p-3">
+                <MapPin className="h-4 w-4 text-blue-700" />
+                <p className="mt-2 text-xs font-extrabold text-slate-900">Admiralty bus stop</p>
+                <p className="mt-1 text-[11px] text-slate-500">Suggested pickup</p>
+              </div>
+              <div className="rounded-xl bg-white p-3">
+                <GitMerge className="h-4 w-4 text-blue-700" />
+                <p className="mt-2 text-xs font-extrabold text-slate-900">88% overlap</p>
+                <p className="mt-1 text-[11px] text-slate-500">Strongest route fit</p>
+              </div>
+            </div>
+          </CardContent>
         </Card>
-      )}
+      ) : null}
     </div>
   );
 };

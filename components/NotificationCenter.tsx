@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router';
 import { X } from 'lucide-react';
 import { notificationService, getNotificationIcon, getNotificationColor } from '../services/notificationService';
 import type { UserNotification } from '../types';
@@ -19,14 +20,18 @@ interface NotificationItemProps {
     notification: UserNotification;
     onRead: (id: string) => void;
     onDelete: (id: string) => void;
+    onActivate: (notification: UserNotification) => void;
 }
 
-const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onRead, onDelete }) => {
+const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onRead, onDelete, onActivate }) => {
     return (
         <div
             className={`flex items-start gap-3 p-4 border-b border-gray-50 last:border-0 transition-colors ${!notification.read ? 'bg-indigo-50/50' : 'bg-white'
                 }`}
-            onClick={() => !notification.read && onRead(notification.id)}
+            onClick={() => {
+                if (!notification.read) onRead(notification.id);
+                onActivate(notification);
+            }}
         >
             <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${getNotificationColor(notification.type)}`}>
                 {getNotificationIcon(notification.type)}
@@ -70,6 +75,7 @@ interface NotificationCenterProps {
 }
 
 const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose }) => {
+    const navigate = useNavigate();
     const [notifications, setNotifications] = useState<UserNotification[]>([]);
     const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
@@ -92,6 +98,14 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
 
     const handleMarkAllRead = () => {
         notificationService.markAllAsRead();
+    };
+
+    const handleActivate = (notification: UserNotification) => {
+        if (notification.type === 'new_message') navigate('/messages');
+        else if (notification.type === 'payment_received') navigate('/wallet');
+        else if (notification.type === 'rating_received') navigate('/profile');
+        else navigate('/trips');
+        onClose();
     };
 
     const filteredNotifications = filter === 'unread'
@@ -176,6 +190,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                 notification={notification}
                                 onRead={handleRead}
                                 onDelete={handleDelete}
+                                onActivate={handleActivate}
                             />
                         ))
                     )}

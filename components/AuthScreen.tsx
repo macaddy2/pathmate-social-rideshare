@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { MapPin, EyeOff, Eye } from 'lucide-react';
+import { GitMerge, EyeOff, Eye } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -54,15 +54,15 @@ const AuthScreen: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#102a43] p-4">
       <div className="w-full max-w-md">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-lg mb-4">
-            <MapPin className="w-10 h-10 text-indigo-600" />
+          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg">
+            <GitMerge className="h-9 w-9" strokeWidth={2.4} />
           </div>
-          <h1 className="text-3xl font-bold text-white">PathMate</h1>
-          <p className="text-white/80 mt-1">Share rides, save money</p>
+          <h1 className="text-3xl font-extrabold tracking-[-0.04em] text-white">PathMate</h1>
+          <p className="mt-1 text-blue-100">Better routes, together</p>
         </div>
 
         {/* Auth Card */}
