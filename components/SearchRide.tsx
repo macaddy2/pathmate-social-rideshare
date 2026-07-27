@@ -3,18 +3,18 @@
  * Enhanced ride search with map-based pickup/dropoff selection and real matching
  */
 
-import React, { useState, useEffect } from 'react';
-import { Map, MapPin, MapPinned, Info, Star, ChevronDown, MessageCircle, Check } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router';
+import { Map, MapPin, MapPinned, Info, Star, ChevronDown, MessageCircle, Check, SlidersHorizontal } from 'lucide-react';
 import { getRouteInsights } from '../services/geminiService';
 import { findMatchingRides, generateMatchExplanation } from '../services/matchingService';
 import { fetchAvailableRides } from '../services/dataService';
-import RatingModal from './RatingModal';
+import BookingFlow from './BookingFlow';
 import RouteMap from './RouteMap';
 import PlacesAutocomplete, { PlaceResult } from './PlacesAutocomplete';
 import type { GeoPoint, DriverRide, RideRequest, RouteMatch } from '../types';
 import { formatCurrency, formatTime } from '../lib/formatters';
 import { useLocationStore } from '../stores/useLocationStore';
-import { useRideStore } from '../stores/useRideStore';
 import { useChatStore } from '../stores/useChatStore';
 import { useSearchStore } from '../stores/useSearchStore';
 import { Button } from './ui/button';
@@ -24,7 +24,7 @@ import { Badge } from './ui/badge';
 
 const SearchRide: React.FC = () => {
   const { userLocation } = useLocationStore();
-  const { addRating: onRate } = useRideStore();
+  const navigate = useNavigate();
   const { openChat: onOpenChat } = useChatStore();
   const { search, setSearch, clearSearch } = useSearchStore();
 
@@ -34,13 +34,7 @@ const SearchRide: React.FC = () => {
   const [selectedMatch, setSelectedMatch] = useState<RouteMatch | null>(null);
   const [aiAnalysis, setAiAnalysis] = useState<{ text: string; links: any[] } | null>(null);
   const [showMap, setShowMap] = useState(false);
-
-  // Rating modal state
-  const [ratingModal, setRatingModal] = useState<{
-    isOpen: boolean;
-    targetName: string;
-    targetId: string;
-  } | null>(null);
+  const [filter, setFilter] = useState<'best' | 'price' | 'departure' | 'rating'>('best');
 
   const [availableRides, setAvailableRides] = useState<DriverRide[]>([]);
   const [ridesLoading, setRidesLoading] = useState(true);
@@ -142,31 +136,33 @@ const SearchRide: React.FC = () => {
   // Handle joining a ride
   const handleJoin = (match: RouteMatch) => {
     setSelectedMatch(match);
-    // In a real app, this would create a booking request
-    // For now, show rating modal as demonstration
-    if (match.driverRide?.driver) {
-      setRatingModal({
-        isOpen: true,
-        targetName: match.driverRide.driver.displayName,
-        targetId: match.driverRide.driver.id,
-      });
-    }
   };
 
+  const filteredMatches = useMemo(() => {
+    const nextMatches = [...matches];
+    if (filter === 'price') return nextMatches.sort((a, b) => a.price - b.price);
+    if (filter === 'departure') {
+      return nextMatches.sort((a, b) => a.estimatedPickupTime.getTime() - b.estimatedPickupTime.getTime());
+    }
+    if (filter === 'rating') {
+      return nextMatches.sort(
+        (a, b) => (b.driverRide?.driver?.driverRating || 0) - (a.driverRide?.driver?.driverRating || 0),
+      );
+    }
+    return nextMatches.sort((a, b) => b.matchScore - a.matchScore);
+  }, [filter, matches]);
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Rating Modal */}
-      {ratingModal && (
-        <RatingModal
-          isOpen={ratingModal.isOpen}
-          onClose={() => setRatingModal(null)}
-          targetName={ratingModal.targetName}
-          targetId={ratingModal.targetId}
-          role="DRIVER"
-          onSubmit={onRate}
-        />
-      )}
+      <BookingFlow
+        match={selectedMatch}
+        onClose={() => setSelectedMatch(null)}
+        onOpenChat={onOpenChat}
+        onViewTrips={() => {
+          setSelectedMatch(null);
+          navigate('/trips');
+        }}
+      />
 
       {/* Search Form */}
       <Card className="rounded-2xl shadow-md">
@@ -284,7 +280,32 @@ const SearchRide: React.FC = () => {
             <span className="text-xs text-gray-500">Sorted by match quality</span>
           </div>
 
-          {matches.map((match) => {
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            <span className="flex shrink-0 items-center gap-1 text-xs font-bold text-slate-500">
+              <SlidersHorizontal className="h-4 w-4" />
+              Sort
+            </span>
+            {([
+              ['best', 'Best match'],
+              ['price', 'Lowest price'],
+              ['departure', 'Soonest'],
+              ['rating', 'Top rated'],
+            ] as const).map(([value, label]) => (
+              <Button
+                key={value}
+                type="button"
+                variant={filter === value ? 'default' : 'outline'}
+                onClick={() => setFilter(value)}
+                className={`h-9 shrink-0 rounded-full px-3 text-xs font-bold ${
+                  filter === value ? 'bg-blue-700 hover:bg-blue-800' : 'bg-white'
+                }`}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+
+          {filteredMatches.map((match) => {
             const ride = match.driverRide;
             const driver = ride?.driver;
             if (!ride || !driver) return null;

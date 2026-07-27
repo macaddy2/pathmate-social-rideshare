@@ -4,7 +4,8 @@
  */
 
 import React, { useState } from 'react';
-import { CheckCircle, Circle } from 'lucide-react';
+import { useNavigate } from 'react-router';
+import { Bell, CalendarDays, CheckCircle, ChevronRight, Circle, ShieldCheck, Sparkles, UserRound, WalletCards } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import type { VehicleInfo, NotificationPreferences } from '../types';
 import { Button } from './ui/button';
@@ -81,6 +82,7 @@ const Toggle: React.FC<ToggleProps> = ({ label, description, enabled, onChange }
 
 const ProfileSettings: React.FC = () => {
     const { user, profile, signOut } = useAuth();
+    const navigate = useNavigate();
 
     // Local state for UI
     const [activeSection, setActiveSection] = useState<'profile' | 'vehicle' | 'notifications' | 'recurring'>('profile');
@@ -142,7 +144,7 @@ const ProfileSettings: React.FC = () => {
     return (
         <div className="space-y-4 animate-fadeIn pb-24">
             {/* Profile Header */}
-            <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl p-6 text-white shadow-xl">
+            <div className="rounded-3xl bg-[#102a43] p-6 text-white shadow-xl">
                 <div className="flex items-center gap-4">
                     <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center text-3xl font-bold backdrop-blur-sm border-2 border-white/30">
                         {(profile?.displayName || user?.email || 'U')[0].toUpperCase()}
@@ -162,6 +164,26 @@ const ProfileSettings: React.FC = () => {
                 </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+                {[
+                    { label: 'Wallet', path: '/wallet', Icon: WalletCards },
+                    { label: 'Safety', path: '/safety', Icon: ShieldCheck },
+                    { label: 'Recurring', path: '/recurring', Icon: CalendarDays },
+                    { label: 'Commute AI', path: '/planner', Icon: Sparkles },
+                ].map(({ label, path, Icon }) => (
+                    <button
+                        key={path}
+                        type="button"
+                        onClick={() => navigate(path)}
+                        className="flex min-h-14 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 text-left shadow-sm"
+                    >
+                        <Icon className="h-5 w-5 text-blue-700" />
+                        <span className="flex-1 text-sm font-extrabold text-slate-900">{label}</span>
+                        <ChevronRight className="h-4 w-4 text-slate-400" />
+                    </button>
+                ))}
+            </div>
+
             {/* Verification Status */}
             <div className="flex gap-2 overflow-x-auto pb-2">
                 <VerificationBadge verified={profile?.emailVerified || true} label="Email" />
@@ -179,10 +201,10 @@ const ProfileSettings: React.FC = () => {
                         onClick={() => setActiveSection(section)}
                         className="rounded-xl whitespace-nowrap"
                     >
-                        {section === 'profile' && '👤 Profile'}
-                        {section === 'vehicle' && '🚗 Vehicle'}
-                        {section === 'notifications' && '🔔 Alerts'}
-                        {section === 'recurring' && '🔄 Recurring'}
+                        {section === 'profile' && <span className="flex items-center gap-1.5"><UserRound className="h-4 w-4" />Profile</span>}
+                        {section === 'vehicle' && 'Vehicle'}
+                        {section === 'notifications' && <span className="flex items-center gap-1.5"><Bell className="h-4 w-4" />Alerts</span>}
+                        {section === 'recurring' && <span className="flex items-center gap-1.5"><CalendarDays className="h-4 w-4" />Recurring</span>}
                     </Button>
                 ))}
             </div>
@@ -410,10 +432,10 @@ const ProfileSettings: React.FC = () => {
             {activeSection === 'recurring' && (
                 <SettingsSection title="Recurring Rides">
                     <div className="text-center py-8 text-gray-500">
-                        <span className="text-4xl block mb-3">🔄</span>
+                        <CalendarDays className="mx-auto mb-3 h-9 w-9 text-blue-700" />
                         <p className="font-medium">No recurring rides set up</p>
                         <p className="text-sm text-gray-400 mb-4">Save your daily commute and auto-match with regular drivers</p>
-                        <Button className="h-12 px-6 rounded-xl font-medium">
+                        <Button onClick={() => navigate('/recurring')} className="h-12 px-6 rounded-xl font-medium">
                             Add Recurring Ride
                         </Button>
                     </div>

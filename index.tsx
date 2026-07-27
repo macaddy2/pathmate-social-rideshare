@@ -24,12 +24,20 @@ window.addEventListener("unhandledrejection", (e) => {
   }
 });
 
-class ErrorBoundary extends React.Component {
-  constructor(props) {
+interface ErrorBoundaryProps {
+  children?: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  error: Error | null;
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { error: null };
   }
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { error };
   }
   render() {
@@ -54,4 +62,3 @@ ReactDOM.createRoot(rootElement).render(
     )
   )
 );
-

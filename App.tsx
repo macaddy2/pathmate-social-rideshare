@@ -3,26 +3,39 @@
  * Social rideshare application with authentication and real-time features
  */
 
-import React, { useEffect } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router';
 import { UserRole } from './types';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
-import Home from './components/Home';
-import SearchRide from './components/SearchRide';
-import PostRide from './components/PostRide';
-import AIPlanner from './components/AIPlanner';
-import ChatWindow from './components/ChatWindow';
 import AuthScreen from './components/AuthScreen';
-import RideHistory from './components/RideHistory';
-import ProfileSettings from './components/ProfileSettings';
-import RecurringRides from './components/RecurringRides';
-import WalletScreen from './components/WalletScreen';
 import { useRideStore } from './stores/useRideStore';
 import { useLocationStore } from './stores/useLocationStore';
 import { useChatStore } from './stores/useChatStore';
 import { notificationService } from './services/notificationService';
 import { paymentService } from './services/paymentService';
+
+const Home = lazy(() => import('./components/Home'));
+const SearchRide = lazy(() => import('./components/SearchRide'));
+const PostRide = lazy(() => import('./components/PostRide'));
+const AIPlanner = lazy(() => import('./components/AIPlanner'));
+const ChatWindow = lazy(() => import('./components/ChatWindow'));
+const RideHistory = lazy(() => import('./components/RideHistory'));
+const ProfileSettings = lazy(() => import('./components/ProfileSettings'));
+const RecurringRides = lazy(() => import('./components/RecurringRides'));
+const WalletScreen = lazy(() => import('./components/WalletScreen'));
+const TripsHub = lazy(() => import('./components/TripsHub'));
+const MessagesScreen = lazy(() => import('./components/MessagesScreen'));
+const SafetyCenter = lazy(() => import('./components/SafetyCenter'));
+
+const ScreenFallback = () => (
+  <div className="flex min-h-64 items-center justify-center">
+    <div className="text-center">
+      <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-blue-100 border-t-blue-700" />
+      <p className="mt-3 text-sm font-semibold text-slate-500">Loading your route…</p>
+    </div>
+  </div>
+);
 
 // ============================================
 // MAIN APP CONTENT (Authenticated)
@@ -73,25 +86,30 @@ const AppContent: React.FC = () => {
 
   return (
     <Layout>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/search" element={<SearchRide />} />
-        <Route path="/post" element={<PostRide />} />
-        <Route path="/planner" element={<AIPlanner />} />
-        <Route path="/history" element={<RideHistory />} />
-        <Route path="/profile" element={<ProfileSettings />} />
-        <Route path="/recurring" element={<RecurringRides />} />
-        <Route path="/wallet" element={<WalletScreen />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-      {activeChat && (
-        <ChatWindow
-          isOpen={!!activeChat}
-          onClose={closeChat}
-          targetName={activeChat.targetName}
-          targetId={activeChat.targetId}
-        />
-      )}
+      <Suspense fallback={<ScreenFallback />}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/search" element={<SearchRide />} />
+          <Route path="/post" element={<PostRide />} />
+          <Route path="/planner" element={<AIPlanner />} />
+          <Route path="/history" element={<RideHistory />} />
+          <Route path="/trips" element={<TripsHub />} />
+          <Route path="/messages" element={<MessagesScreen />} />
+          <Route path="/profile" element={<ProfileSettings />} />
+          <Route path="/recurring" element={<RecurringRides />} />
+          <Route path="/wallet" element={<WalletScreen />} />
+          <Route path="/safety" element={<SafetyCenter />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+        {activeChat ? (
+          <ChatWindow
+            isOpen
+            onClose={closeChat}
+            targetName={activeChat.targetName}
+            targetId={activeChat.targetId}
+          />
+        ) : null}
+      </Suspense>
     </Layout>
   );
 };
