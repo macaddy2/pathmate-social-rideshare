@@ -1,6 +1,6 @@
 ﻿import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router";
+import { HashRouter } from "react-router";
 import App from "./App";
 
 // Catch module-level errors before React mounts
@@ -57,7 +57,7 @@ if (!rootElement) throw new Error("No root element");
 
 ReactDOM.createRoot(rootElement).render(
   React.createElement(ErrorBoundary, null,
-    React.createElement(BrowserRouter, { basename: import.meta.env.BASE_URL },
+    React.createElement(HashRouter, null,
       React.createElement(App)
     )
   )
