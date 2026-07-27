@@ -57,7 +57,7 @@ if (!rootElement) throw new Error("No root element");
 
 ReactDOM.createRoot(rootElement).render(
   React.createElement(ErrorBoundary, null,
-    React.createElement(BrowserRouter, null,
+    React.createElement(BrowserRouter, { basename: import.meta.env.BASE_URL },
       React.createElement(App)
     )
   )
