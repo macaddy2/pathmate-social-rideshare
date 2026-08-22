@@ -1,117 +1,73 @@
+type GeminiOperation =
+  | 'analyzeAppFeasibility'
+  | 'getComplexCoordinationAdvice'
+  | 'getRouteInsights'
+  | 'getMatchingExplanation';
 
-import { GoogleGenAI, Type } from "@google/genai";
+const GEMINI_API_BASE_URL = (import.meta.env.VITE_GEMINI_API_BASE_URL || '').replace(/\/$/, '');
 
-const API_KEY = process.env.API_KEY || '';
+async function requestGemini<T>(operation: GeminiOperation, input: Record<string, unknown>): Promise<T> {
+  const response = await fetch(`${GEMINI_API_BASE_URL}/api/gemini`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ operation, ...input }),
+  });
 
-export const getGeminiClient = () => {
-  return new GoogleGenAI({ apiKey: API_KEY });
-};
+  if (!response.ok) {
+    throw new Error(`Gemini backend returned ${response.status}`);
+  }
 
-/**
- * Uses Gemini 3 Pro with Thinking Mode for complex feasibility and market analysis.
- * Adheres to the user's specific instruction: ThinkingBudget 32768, No maxOutputTokens.
- */
+  return response.json() as Promise<T>;
+}
+
+/** Uses the server-side Gemini proxy for complex feasibility analysis. */
 export const analyzeAppFeasibility = async (prompt: string) => {
-  const ai = getGeminiClient();
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
-      contents: prompt,
-      config: {
-        thinkingConfig: { thinkingBudget: 32768 }
-      },
-    });
-    return response.text;
+    const result = await requestGemini<{ text: string }>('analyzeAppFeasibility', { prompt });
+    return result.text;
   } catch (error) {
-    console.error("Feasibility analysis error:", error);
-    return "Failed to analyze feasibility. Please check your API key.";
+    console.error('Feasibility analysis error:', error);
+    return 'Failed to analyze feasibility. AI features are temporarily unavailable.';
   }
 };
 
-/**
- * Uses Gemini 3 Pro with Thinking Mode for complex coordination advice (luggage, pets, timing).
- */
+/** Uses the server-side Gemini proxy for complex coordination advice. */
 export const getComplexCoordinationAdvice = async (chatHistory: string, query: string) => {
-  const ai = getGeminiClient();
-  const prompt = `
-    Context: You are PathMate AI, a smart carpooling assistant.
-    Recent Chat History: ${chatHistory}
-    User Query: ${query}
-    
-    Task: Provide a detailed, thoughtful solution to this complex coordination problem. 
-    Think through logistical constraints like vehicle size, traffic, and safety.
-  `;
-  
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
-      contents: prompt,
-      config: {
-        thinkingConfig: { thinkingBudget: 32768 }
-      },
+    const result = await requestGemini<{ text: string }>('getComplexCoordinationAdvice', {
+      chatHistory,
+      query,
     });
-    return response.text;
+    return result.text;
   } catch (error) {
-    console.error("Coordination advisor error:", error);
+    console.error('Coordination advisor error:', error);
     return "I'm having trouble thinking through this right now. Please try again.";
   }
 };
 
-/**
- * Uses Gemini 2.5 Flash with Google Maps tool for route verification and point of interest discovery
- */
+/** Uses the server-side Gemini proxy for route verification and point-of-interest discovery. */
 export const getRouteInsights = async (origin: string, destination: string, lat?: number, lng?: number) => {
-  const ai = getGeminiClient();
-  const prompt = `I am planning a trip from ${origin} to ${destination}. Suggest some safe meetup points, popular landmarks, and top-rated restaurants near these locations. Check current local traffic conditions or area safety if possible.`;
-  
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-latest",
-      contents: prompt,
-      config: {
-        tools: [{ googleMaps: {} }],
-        toolConfig: {
-          retrievalConfig: {
-            latLng: lat && lng ? { latitude: lat, longitude: lng } : undefined
-          }
-        }
-      },
-    });
-    
-    const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-    return {
-      text: response.text,
-      links: chunks.map((c: any) => ({
-        title: c.maps?.title || "Map Link",
-        uri: c.maps?.uri || "#"
-      }))
-    };
+    return await requestGemini<{ text: string; links: Array<{ title: string; uri: string }> }>(
+      'getRouteInsights',
+      { origin, destination, lat, lng },
+    );
   } catch (error) {
-    console.error("Route insight error:", error);
-    return { text: "Could not fetch map insights at this time.", links: [] };
+    console.error('Route insight error:', error);
+    return { text: 'Could not fetch map insights at this time.', links: [] };
   }
 };
 
-/**
- * Quick smart matching using Gemini 3 Flash
- */
-export const getMatchingExplanation = async (riderRequest: string, availableRoutes: any[]) => {
-  const ai = getGeminiClient();
-  const prompt = `
-    Rider Request: ${riderRequest}
-    Available Routes: ${JSON.stringify(availableRoutes)}
-    
-    Explain which route is the best match for the rider and why, considering direction and timing. Keep it conversational and brief.
-  `;
-
+/** Uses the server-side Gemini proxy for quick route-match explanations. */
+export const getMatchingExplanation = async (riderRequest: string, availableRoutes: unknown[]) => {
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
+    const result = await requestGemini<{ text: string }>('getMatchingExplanation', {
+      riderRequest,
+      availableRoutes,
     });
-    return response.text;
+    return result.text;
   } catch (error) {
-    console.error("Matching error:", error);
-    return "Matching logic currently unavailable.";
+    console.error('Matching error:', error);
+    return 'Matching logic currently unavailable.';
   }
 };

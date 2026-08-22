@@ -38,15 +38,15 @@ Use **Google Gemini** via the `@google/genai` SDK with a multi-model strategy:
 
 **Negative:**
 - Preview models may change behavior or availability
-- API key exposed client-side (via Vite `define`) — should move to server-side proxy
+- AI calls now pass through the Node server; the API key is server-runtime configuration and is not bundled by Vite
 - No streaming support implemented (responses are full-text)
 - Gemini responses are unvalidated — could return inaccurate safety/location info
 - Cost scales with usage (no caching implemented)
 
-**Security concern:** The `GEMINI_API_KEY` is exposed to the client via Vite's `define` config. For production, this should be proxied through a Supabase Edge Function or similar server-side layer.
+**Security boundary:** The browser calls `POST /api/gemini`; only the Node server reads `GEMINI_API_KEY`. A deployment must provide that secret server-side and configure the allowed frontend origin before enabling AI in staging.
 
 **Future improvements:**
 - Stream responses for better UX in AI Planner
 - Cache common queries (same route insights)
 - Add structured output validation
-- Move API calls server-side
+- Add rate limiting, authentication, and structured output validation to the server route

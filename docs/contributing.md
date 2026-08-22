@@ -50,7 +50,9 @@
 | `VITE_GOOGLE_MAPS_API_KEY` | Google Cloud Console → APIs → Maps JavaScript API | Yes |
 | `VITE_PAYSTACK_PUBLIC_KEY` | Paystack Dashboard → Settings → API Keys | For payments |
 | `VITE_STRIPE_PUBLIC_KEY` | Stripe Dashboard → Developers → API Keys → Publishable key | For payments |
-| `GEMINI_API_KEY` | Google AI Studio → Get API Key | For AI features |
+| `GEMINI_API_KEY` | Google AI Studio → Get API Key | Server runtime only; never a `VITE_` variable |
+| `VITE_GEMINI_API_BASE_URL` | PathMate backend deployment URL | When frontend and backend use different origins |
+| `PATHMATE_FRONTEND_ORIGINS` | Server configuration | Comma-separated allowed browser origins |
 
 ---
 

@@ -15,6 +15,11 @@ View your app in AI Studio: https://ai.studio/apps/drive/1bgYEVrV2Er2Uhm3iJ_eHAQ
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. If using AI features, set `GEMINI_API_KEY` only in the server runtime environment. Never expose it through a `VITE_` variable or browser build configuration.
 3. Run the app:
    `npm run dev`
+
+The AI client calls `POST /api/gemini` on the Node server. When the frontend and
+server use different origins, set the public backend URL in
+`VITE_GEMINI_API_BASE_URL` and allow that frontend origin with
+`PATHMATE_FRONTEND_ORIGINS` on the server.

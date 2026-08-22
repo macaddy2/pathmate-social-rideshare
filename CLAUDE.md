@@ -147,11 +147,13 @@ VITE_GOOGLE_MAPS_API_KEY=<your-key>
 VITE_PAYSTACK_PUBLIC_KEY=pk_live_...
 VITE_STRIPE_PUBLIC_KEY=pk_live_...
 
-# Required for AI Planner
+# Server-only secret for the AI Planner (set on the Node backend, never Vite)
 GEMINI_API_KEY=<your-key>
+# Public backend URL for a separately hosted frontend, if needed
+VITE_GEMINI_API_BASE_URL=https://your-backend.example
 ```
 
-> **Note:** All env vars prefixed with `VITE_` are exposed to the client bundle. Never put secret keys in VITE_ vars.
+> **Note:** All env vars prefixed with `VITE_` are exposed to the client bundle. Never put secret keys in VITE_ vars. `GEMINI_API_KEY` is read only by the Node backend.
 > `vite.config.ts` uses `loadEnv(mode, __dirname, '')` — `.env.local` must be in the **project root**, not a parent directory.
 
 ---
