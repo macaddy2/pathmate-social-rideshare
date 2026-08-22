@@ -301,11 +301,11 @@ describe('useWalletStore', () => {
     expect(transactions[0].id).toBe('txn-2'); // Most recent first
   });
 
-  it('should refresh wallet from payment service', () => {
+  it('should not fabricate wallet transactions while payments are unavailable', () => {
     useWalletStore.getState().refreshWallet();
     const { wallet, transactions } = useWalletStore.getState();
     expect(wallet).not.toBeNull();
     expect(wallet!.balance).toBeGreaterThanOrEqual(0);
-    expect(transactions.length).toBeGreaterThan(0);
+    expect(transactions).toHaveLength(0);
   });
 });

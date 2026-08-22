@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import type { RouteMatch } from '../types';
 import { formatCurrency, formatTime } from '../lib/formatters';
+import { requestBooking } from '../services/dataService';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -42,6 +43,8 @@ const BookingFlow: React.FC<BookingFlowProps> = ({
   const [step, setStep] = useState<Step>('details');
   const [paymentChoice, setPaymentChoice] = useState<PaymentChoice>('paystack');
   const [seats, setSeats] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const ride = match?.driverRide;
   const driver = ride?.driver;
@@ -51,6 +54,19 @@ const BookingFlow: React.FC<BookingFlowProps> = ({
 
   const goBack = () => {
     if (step === 'checkout') setStep('details');
+  };
+
+  const handleRequestSeat = async () => {
+    setError(null);
+    setSubmitting(true);
+    try {
+      await requestBooking(match, seats);
+      setStep('requested');
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to request this seat.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -162,7 +178,7 @@ const BookingFlow: React.FC<BookingFlowProps> = ({
               Match details
             </button>
             <h2 className="text-2xl font-extrabold tracking-[-0.03em] text-slate-950">Confirm your seat</h2>
-            <p className="mt-1 text-sm text-slate-500">Payment is protected until the trip is completed.</p>
+            <p className="mt-1 text-sm text-slate-500">Reserve a seat securely. Payment activation follows the approved provider rollout.</p>
 
             <section className="mt-5 rounded-2xl border border-slate-200 p-4">
               <div className="flex items-center justify-between">
@@ -218,8 +234,9 @@ const BookingFlow: React.FC<BookingFlowProps> = ({
               <div className="flex justify-between border-t border-slate-200 pt-3 font-extrabold text-slate-950"><span>Total</span><span>{formatCurrency(total, match.currency)}</span></div>
             </section>
 
-            <Button onClick={() => setStep('requested')} className="mt-5 h-12 w-full rounded-xl bg-blue-700 font-bold hover:bg-blue-800">
-              Pay and request seat
+            {error ? <p className="mt-4 text-sm font-medium text-red-700">{error}</p> : null}
+            <Button onClick={handleRequestSeat} disabled={submitting} className="mt-5 h-12 w-full rounded-xl bg-blue-700 font-bold hover:bg-blue-800">
+              {submitting ? 'Requesting seat…' : 'Request seat'}
             </Button>
           </div>
         ) : null}
@@ -231,12 +248,12 @@ const BookingFlow: React.FC<BookingFlowProps> = ({
             </span>
             <h2 className="mt-5 text-2xl font-extrabold tracking-[-0.03em] text-slate-950">Seat requested</h2>
             <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-slate-600">
-              {driver.displayName.split(' ')[0]} has been notified. Your payment is protected while the request is reviewed.
+              {driver.displayName.split(' ')[0]} has been notified. No payment has been taken while provider activation is pending.
             </p>
             <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-left">
               <p className="text-xs font-semibold text-slate-500">Tomorrow • {formatTime(match.estimatedPickupTime)}</p>
               <p className="mt-1 font-extrabold text-slate-950">{match.pickupAddress || 'Lekki Phase 1'} → {match.dropoffAddress || 'Victoria Island'}</p>
-              <p className="mt-2 text-sm font-bold text-blue-700">{formatCurrency(total, match.currency)} in escrow</p>
+              <p className="mt-2 text-sm font-bold text-blue-700">Payment will be requested after provider activation.</p>
             </div>
             <Button onClick={onViewTrips} className="mt-5 h-12 w-full rounded-xl bg-blue-700 font-bold hover:bg-blue-800">
               View upcoming trip

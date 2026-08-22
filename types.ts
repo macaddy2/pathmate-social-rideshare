@@ -11,12 +11,10 @@ export enum UserRole {
 export enum BookingStatus {
   PENDING = 'pending',
   ACCEPTED = 'accepted',
-  REJECTED = 'rejected',
+  DRIVER_ARRIVED = 'driver_arrived',
   PICKED_UP = 'picked_up',
-  DROPPED_OFF = 'dropped_off',
   COMPLETED = 'completed',
-  CANCELLED = 'cancelled',
-  NO_SHOW = 'no_show'
+  CANCELLED = 'cancelled'
 }
 
 export enum RideStatus {
@@ -33,8 +31,10 @@ export enum PaymentMethod {
 
 export enum PaymentStatus {
   PENDING = 'pending',
-  PAID = 'paid',
-  REFUNDED = 'refunded'
+  RIDER_CONFIRMED = 'rider_confirmed',
+  DRIVER_CONFIRMED = 'driver_confirmed',
+  COMPLETED = 'completed',
+  DISPUTED = 'disputed'
 }
 
 // ============================================

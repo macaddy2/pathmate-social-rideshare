@@ -1,21 +1,20 @@
-# PathMate staging migrations
+# PathMate database migrations
 
-The repository’s historical `supabase/schema.sql` is a manual baseline, not an
-ordered migration set. It declares some policies before the later
-`notifications`, `payments`, `recurring_rides`, and `wallets` tables, so it must
-be reordered or replaced with a reviewed baseline migration before a fresh
-staging project can apply the Bucket A patch.
+`supabase/migrations/` is the single canonical source for database state. Apply
+these files only in timestamp order. The historical `supabase/schema.sql` is a
+deprecated reference, never an apply target.
 
 `20260822120000_initial_schema.sql` is the ordered baseline derived from the
-repository schema. `20260822130000_bucket_a_security_hardening.sql` is the local equivalent of the
-referenced `security-patch-v1` through `v1.4` series. It is intentionally
-fail-closed: it stops if the baseline tables are missing. It has not been
-applied to Supabase.
+repository schema. `20260822130000_bucket_a_security_hardening.sql` is the
+local equivalent of the referenced `security-patch-v1` through `v1.4` series.
+It is intentionally fail-closed: it stops if the baseline tables are missing.
 
 Safe staging order:
 
-1. Review and apply `20260822120000_initial_schema.sql` to `pathmate-staging` only.
-2. Apply `20260822130000_bucket_a_security_hardening.sql`.
-3. Run RLS/policy regression tests and confirm the app’s required server paths.
-4. Configure the backend secret and allowed frontend origin only after the code
-   is deployed and the staging URL is confirmed.
+1. Review the pending set with the Supabase CLI against the explicitly linked
+   target project.
+2. Apply only reviewed migrations, in filename order, to the intended
+   environment.
+3. Run RLS/policy regression checks and confirm the app’s required server paths.
+4. Follow `docs/local-backend-readiness.md` before any payment or server-function
+   deployment. That document deliberately contains no secret values.

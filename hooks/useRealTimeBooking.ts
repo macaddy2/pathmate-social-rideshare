@@ -65,8 +65,7 @@ export function useRealTimeBooking({
         .from('bookings')
         .select(`
           *,
-          ride:rides(*),
-          rider:users!rider_id(*)
+          ride:rides(*)
         `)
         .eq('id', bookingId)
         .single();
@@ -93,8 +92,7 @@ export function useRealTimeBooking({
           driverConfirmedPayment: data.driver_confirmed_payment,
           requestedAt: new Date(data.requested_at),
           acceptedAt: data.accepted_at ? new Date(data.accepted_at) : undefined,
-          pickupAt: data.pickup_at ? new Date(data.pickup_at) : undefined,
-          dropoffAt: data.dropoff_at ? new Date(data.dropoff_at) : undefined,
+          pickupAt: data.picked_up_at ? new Date(data.picked_up_at) : undefined,
           completedAt: data.completed_at ? new Date(data.completed_at) : undefined,
         };
         setBooking(bookingData);
@@ -136,8 +134,7 @@ export function useRealTimeBooking({
               riderConfirmedPayment: newData.rider_confirmed_payment,
               driverConfirmedPayment: newData.driver_confirmed_payment,
               acceptedAt: newData.accepted_at ? new Date(newData.accepted_at) : prev.acceptedAt,
-              pickupAt: newData.pickup_at ? new Date(newData.pickup_at) : prev.pickupAt,
-              dropoffAt: newData.dropoff_at ? new Date(newData.dropoff_at) : prev.dropoffAt,
+              pickupAt: newData.picked_up_at ? new Date(newData.picked_up_at) : prev.pickupAt,
               completedAt: newData.completed_at ? new Date(newData.completed_at) : prev.completedAt,
             };
           });
@@ -211,28 +208,8 @@ export function useRealTimeBooking({
     if (!bookingId) return;
 
     try {
-      const updates: Record<string, any> = { status };
-
-      // Add timestamp based on status
-      switch (status) {
-        case 'accepted':
-          updates.accepted_at = new Date().toISOString();
-          break;
-        case 'picked_up':
-          updates.pickup_at = new Date().toISOString();
-          break;
-        case 'dropped_off':
-          updates.dropoff_at = new Date().toISOString();
-          break;
-        case 'completed':
-          updates.completed_at = new Date().toISOString();
-          break;
-      }
-
       const { error: updateError } = await supabase
-        .from('bookings')
-        .update(updates)
-        .eq('id', bookingId);
+        .rpc('transition_booking', { p_booking_id: bookingId, p_status: status });
 
       if (updateError) throw updateError;
     } catch (err) {

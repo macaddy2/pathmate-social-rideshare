@@ -54,12 +54,10 @@ const StatusBadge: React.FC<{ status: Booking['status'] }> = ({ status }) => {
   const statusConfig: Record<Booking['status'], { label: string; color: string; icon: string }> = {
     pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-800', icon: '⏳' },
     accepted: { label: 'Accepted', color: 'bg-blue-100 text-blue-800', icon: '✓' },
-    rejected: { label: 'Rejected', color: 'bg-red-100 text-red-800', icon: '✗' },
+    driver_arrived: { label: 'Driver Arrived', color: 'bg-indigo-100 text-indigo-800', icon: '🚗' },
     picked_up: { label: 'In Transit', color: 'bg-indigo-100 text-indigo-800', icon: '🚗' },
-    dropped_off: { label: 'Dropped Off', color: 'bg-green-100 text-green-800', icon: '✓' },
     completed: { label: 'Completed', color: 'bg-green-100 text-green-800', icon: '✅' },
     cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-800', icon: '✗' },
-    no_show: { label: 'No Show', color: 'bg-red-100 text-red-800', icon: '✗' },
   };
 
   const config = statusConfig[status];

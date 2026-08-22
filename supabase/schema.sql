@@ -1,7 +1,15 @@
--- ============================================
--- PathMate Database Schema
--- Run this in Supabase SQL Editor
--- ============================================
+-- =============================================================================
+-- DEPRECATED REFERENCE ONLY — DO NOT APPLY THIS FILE
+-- =============================================================================
+-- Canonical database source: supabase/migrations/, in timestamp order.
+--
+-- This file predates the migration history and is retained only as historical
+-- reference. Applying it to any environment can create a schema that diverges
+-- from the reviewed migrations and their Bucket A security controls. Create
+-- schema changes as a new migration; never update this file as a second source
+-- of truth. See supabase/migrations/README.md and
+-- docs/local-backend-readiness.md.
+-- =============================================================================
 
 -- Enable PostGIS extension for geospatial queries
 CREATE EXTENSION IF NOT EXISTS postgis;

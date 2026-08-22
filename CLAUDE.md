@@ -22,7 +22,7 @@ PathMate is a peer-to-peer carpooling platform that matches riders with drivers 
 | **Design System** | Tokens, Shadcn/ui usage, Figma workflow | [`docs/design-system.md`](docs/design-system.md) |
 | **Contributing** | Git conventions, PR process, coding standards | [`docs/contributing.md`](docs/contributing.md) |
 | **ADRs** | Architecture Decision Records | [`docs/adr/`](docs/adr/) |
-| **Schema** | PostgreSQL schema with PostGIS, RLS, triggers | [`supabase/schema.sql`](supabase/schema.sql) |
+| **Schema** | Canonical ordered PostgreSQL schema history | [`supabase/migrations/README.md`](supabase/migrations/README.md) |
 
 > **Before implementing any feature:** check the PRD for priority level (P0/P1/P2/P3) and the spec for the technical pattern.
 
@@ -99,7 +99,8 @@ pathmate-social-rideshare/
 │   └── supabase.ts       # Supabase client + TypeScript types
 │
 ├── supabase/
-│   └── schema.sql        # Full DB schema (run in Supabase SQL Editor)
+│   ├── migrations/       # Canonical ordered schema history
+│   └── schema.sql        # Deprecated historical reference; do not apply
 │
 ├── docs/                 # Product + technical documentation
 │   ├── prd.md            # ← PRIMARY PRODUCT REFERENCE
@@ -231,7 +232,9 @@ Per [`docs/prd.md`](docs/prd.md) §5:
 
 ## Database Schema (Summary)
 
-11 tables. See [`supabase/schema.sql`](supabase/schema.sql) for full SQL.
+See [`supabase/migrations/`](supabase/migrations/) for the canonical ordered
+SQL history. `supabase/schema.sql` is historical reference only and must not be
+applied.
 
 | Table | Purpose |
 |-------|---------|

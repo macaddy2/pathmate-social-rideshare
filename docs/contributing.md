@@ -30,7 +30,9 @@
 
 4. **Set up Supabase database:**
    - Create a new Supabase project
-   - Go to SQL Editor and run the contents of `supabase/schema.sql`
+   - Treat `supabase/migrations/` as the only database source of truth; review
+     and apply its migrations in timestamp order using the Supabase CLI
+   - Do **not** run `supabase/schema.sql`; it is a deprecated historical reference
    - Enable Realtime for `bookings` and `messages` tables (Database → Replication)
 
 5. **Start the dev server:**

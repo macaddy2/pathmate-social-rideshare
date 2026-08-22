@@ -3,11 +3,12 @@
  * Centralized data access layer — Supabase queries with mock fallback
  *
  * When Supabase is configured (env vars present), queries the real database.
- * When unconfigured or on failure, falls back to mock data for development.
+ * Mock data is development-only; production surfaces database failures.
  */
 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { createGeoRoute } from './geoService';
+import { UserRole } from '../types';
 import type {
   DriverRide,
   RideHistoryEntry,
@@ -18,8 +19,8 @@ import type {
   Rating,
   GeoPoint,
   RideStatus,
-  UserRole,
   NotificationType,
+  RouteMatch,
 } from '../types';
 import type { ActiveRide } from '../stores/useActiveRidesStore';
 
@@ -36,14 +37,52 @@ async function withFallback<T>(
   label: string
 ): Promise<T> {
   if (!isSupabaseConfigured()) {
+    if (!import.meta.env.DEV) {
+      throw new Error(`[DataService] ${label}: Supabase is not configured`);
+    }
     return mockFn();
   }
   try {
     return await queryFn();
   } catch (error) {
-    console.warn(`[DataService] ${label}: Falling back to mock data`, error);
+    console.warn(`[DataService] ${label}: query failed`, error);
+    if (!import.meta.env.DEV) throw error;
     return mockFn();
   }
+}
+
+const toWktPoint = (point: GeoPoint) => `POINT(${point.lng} ${point.lat})`;
+
+/** The deliberately narrow view used for other people's ride cards. */
+async function fetchPublicProfiles(ids: string[]): Promise<Map<string, any>> {
+  const uniqueIds = [...new Set(ids.filter(Boolean))];
+  if (uniqueIds.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from('public_profiles')
+    .select('*')
+    .in('id', uniqueIds);
+
+  if (error) throw error;
+  return new Map((data || []).map((profile: any) => [profile.id, profile]));
+}
+
+export async function requestBooking(match: RouteMatch, seats: number): Promise<string> {
+  if (!isSupabaseConfigured()) {
+    throw new Error('Supabase is not configured');
+  }
+
+  const { data, error } = await supabase.rpc('request_booking', {
+    p_ride_id: match.driverRideId,
+    p_pickup: toWktPoint(match.pickupPoint),
+    p_dropoff: toWktPoint(match.dropoffPoint),
+    p_pickup_address: match.pickupAddress ?? null,
+    p_dropoff_address: match.dropoffAddress ?? null,
+    p_seats: seats,
+  });
+
+  if (error) throw error;
+  return data as string;
 }
 
 // ============================================
@@ -55,14 +94,18 @@ export async function fetchAvailableRides(): Promise<DriverRide[]> {
     async () => {
       const { data, error } = await supabase
         .from('rides')
-        .select('*, users!rides_driver_id_fkey(*)')
+        .select('*')
         .eq('status', 'active')
         .gt('seats_available', 0)
         .gte('departure_time', new Date().toISOString())
         .order('departure_time', { ascending: true });
 
       if (error) throw error;
-      return (data || []).map(mapRideRow);
+      const profiles = await fetchPublicProfiles((data || []).map((ride: any) => ride.driver_id));
+      return (data || []).map((ride: any) => mapRideRow({
+        ...ride,
+        public_profile: profiles.get(ride.driver_id),
+      }));
     },
     generateMockDriverRides,
     'fetchAvailableRides'
@@ -74,18 +117,21 @@ export async function fetchActiveRides(userId: string): Promise<ActiveRide[]> {
     async () => {
       const { data, error } = await supabase
         .from('rides')
-        .select('*, bookings(*, users!bookings_rider_id_fkey(display_name, rider_rating))')
+        .select('*, bookings(*)')
         .eq('driver_id', userId)
         .in('status', ['active', 'in_progress'])
         .order('departure_time', { ascending: true });
 
       if (error) throw error;
+      const profiles = await fetchPublicProfiles(
+        (data || []).flatMap((ride: any) => (ride.bookings || []).map((booking: any) => booking.rider_id))
+      );
       return (data || []).map((row: any) => ({
         ...mapRideRow(row),
         matchedRiders: (row.bookings || []).map((b: any) => ({
           id: b.rider_id,
-          name: b.users?.display_name || 'Rider',
-          rating: b.users?.rider_rating || 5.0,
+          name: profiles.get(b.rider_id)?.display_name || 'Rider',
+          rating: profiles.get(b.rider_id)?.rider_rating || 5.0,
           pickupAddress: b.pickup_address || '',
           dropoffAddress: b.dropoff_address || '',
           status: b.status,
@@ -133,13 +179,16 @@ export async function fetchRideHistory(userId: string): Promise<RideHistoryEntry
     async () => {
       const { data, error } = await supabase
         .from('bookings')
-        .select('*, rides(*), rider:users!bookings_rider_id_fkey(display_name, rider_rating), driver:users!bookings_driver_id_fkey(display_name, driver_rating)')
+        .select('*, rides(*)')
         .or(`rider_id.eq.${userId},driver_id.eq.${userId}`)
         .in('status', ['completed', 'cancelled'])
         .order('created_at', { ascending: false })
         .limit(50);
 
       if (error) throw error;
+      const profiles = await fetchPublicProfiles(
+        (data || []).flatMap((booking: any) => [booking.rider_id, booking.driver_id])
+      );
       return (data || []).map((row: any) => {
         const isDriver = row.driver_id === userId;
         const ride = row.rides;
@@ -155,8 +204,10 @@ export async function fetchRideHistory(userId: string): Promise<RideHistoryEntry
           currency: row.currency,
           distanceKm,
           durationMinutes: ride?.duration_minutes || Math.floor(distanceKm * 3.5),
-          partnerName: isDriver ? row.rider?.display_name || '' : row.driver?.display_name || '',
-          partnerRating: isDriver ? row.rider?.rider_rating || 5.0 : row.driver?.driver_rating || 5.0,
+          partnerName: profiles.get(isDriver ? row.rider_id : row.driver_id)?.display_name || '',
+          partnerRating: isDriver
+            ? profiles.get(row.rider_id)?.rider_rating || 5.0
+            : profiles.get(row.driver_id)?.driver_rating || 5.0,
           co2SavedKg: distanceKm * 0.12,
         };
       });
@@ -295,19 +346,6 @@ export async function deleteNotificationById(id: string): Promise<void> {
   if (error) console.warn('[DataService] deleteNotification failed:', error);
 }
 
-export async function createNotification(notification: Omit<UserNotification, 'id' | 'createdAt'>): Promise<void> {
-  if (!isSupabaseConfigured()) return;
-  const { error } = await supabase.from('notifications').insert({
-    user_id: notification.userId,
-    type: notification.type,
-    title: notification.title,
-    message: notification.message,
-    data: notification.data || {},
-    read: notification.read,
-  });
-  if (error) console.warn('[DataService] createNotification failed:', error);
-}
-
 // ============================================
 // PAYMENTS / WALLET
 // ============================================
@@ -350,45 +388,6 @@ export async function fetchTransactions(userId: string): Promise<PaymentTransact
     generateMockTransactions,
     'fetchTransactions'
   );
-}
-
-export async function createPaymentTransaction(
-  transaction: Omit<PaymentTransaction, 'id' | 'createdAt'>
-): Promise<PaymentTransaction | null> {
-  if (!isSupabaseConfigured()) return null;
-  const { data, error } = await supabase
-    .from('payments')
-    .insert({
-      booking_id: transaction.bookingId || null,
-      from_user_id: transaction.fromUserId,
-      to_user_id: transaction.toUserId,
-      amount: transaction.amount,
-      currency: transaction.currency,
-      provider: transaction.provider,
-      provider_ref: transaction.providerRef,
-      status: transaction.status,
-    })
-    .select()
-    .single();
-
-  if (error) { console.warn('[DataService] createPaymentTransaction failed:', error); return null; }
-  return mapTransactionRow(data);
-}
-
-export async function updateTransactionStatus(id: string, status: string, completedAt?: Date): Promise<void> {
-  if (!isSupabaseConfigured()) return;
-  const updates: Record<string, unknown> = { status };
-  if (completedAt) updates.completed_at = completedAt.toISOString();
-  const { error } = await supabase.from('payments').update(updates).eq('id', id);
-  if (error) console.warn('[DataService] updateTransactionStatus failed:', error);
-}
-
-export async function updateWalletBalance(userId: string, newBalance: number): Promise<void> {
-  if (!isSupabaseConfigured()) return;
-  const { error } = await supabase
-    .from('wallets')
-    .upsert({ user_id: userId, balance: newBalance, currency: 'NGN', last_updated: new Date().toISOString() });
-  if (error) console.warn('[DataService] updateWalletBalance failed:', error);
 }
 
 // ============================================
@@ -450,21 +449,24 @@ function mapRideRow(row: any): DriverRide {
   return {
     id: row.id,
     driverId: row.driver_id,
-    driver: row.users ? {
-      id: row.users.id,
-      email: row.users.email,
-      displayName: row.users.display_name,
-      createdAt: new Date(row.users.created_at),
-      emailVerified: row.users.email_verified,
-      phoneVerified: row.users.phone_verified,
-      idVerified: row.users.id_verified,
-      defaultRole: row.users.default_role as UserRole,
-      vehicleMake: row.users.vehicle_make,
-      vehicleModel: row.users.vehicle_model,
-      vehicleYear: row.users.vehicle_year,
-      vehicleColor: row.users.vehicle_color,
-      driverRating: row.users.driver_rating,
-      driverRatingCount: row.users.driver_rating_count,
+    driver: row.public_profile ? {
+      id: row.public_profile.id,
+      // Contact and verification fields are intentionally not returned by public_profiles.
+      email: '',
+      displayName: row.public_profile.display_name,
+      createdAt: new Date(0),
+      emailVerified: false,
+      phoneVerified: false,
+      idVerified: false,
+      defaultRole: UserRole.GUEST,
+      vehicleMake: row.public_profile.vehicle_make,
+      vehicleModel: row.public_profile.vehicle_model,
+      vehicleYear: row.public_profile.vehicle_year,
+      vehicleColor: row.public_profile.vehicle_color,
+      riderRating: row.public_profile.rider_rating,
+      riderRatingCount: row.public_profile.rider_rating_count,
+      driverRating: row.public_profile.driver_rating,
+      driverRatingCount: row.public_profile.driver_rating_count,
     } : undefined,
     route: createGeoRoute(
       row.id,

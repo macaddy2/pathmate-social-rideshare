@@ -9,7 +9,6 @@ import {
     markNotificationRead,
     markAllNotificationsRead,
     deleteNotificationById,
-    createNotification as createNotificationInDb,
 } from './dataService';
 
 // ============================================
@@ -71,8 +70,6 @@ class NotificationService {
         };
         this.notifications.unshift(newNotification);
         this.notifyListeners();
-        createNotificationInDb(notification);
-
         // Show browser notification if permitted
         this.showBrowserNotification(newNotification);
     }
